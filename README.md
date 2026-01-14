@@ -6,7 +6,6 @@ A modern, minimalist web application for viewing the daily menu of **Mensa Süd*
 
 - **Real-time Scraper**: Automatically fetches the latest menu data from the official Studentwerk Rostock website.
 - **AI-Powered Refinement**: Integrates with Google Gemini to process and categorize raw menu data for better accuracy and readability.
-- **Clean UI**: A minimalist "off-white and grey" aesthetic designed for maximum readability and speed.
 - **Detailed Information**: Provides pricing (Student/Staff/Guest) and allergen labels for every meal.
 - **Fully Responsive**: Optimized for both desktop and mobile devices.
 
@@ -16,7 +15,6 @@ A modern, minimalist web application for viewing the daily menu of **Mensa Süd*
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **Scraping**: [Cheerio](https://cheerio.js.org/)
 - **AI Engine**: [Google Gemini Pro API (@google/genai)](https://ai.google.dev/docs)
-- **Styling**: Vanilla CSS with modern flex/grid layouts
 - **Deployment**: Ready for Docker and Vercel
 
 ## 🚀 Getting Started
@@ -49,6 +47,7 @@ A modern, minimalist web application for viewing the daily menu of **Mensa Süd*
    ```
 
 4. Run the development server:
+
    ```bash
    npm run dev
    ```
@@ -69,4 +68,4 @@ This project is private and intended for use within the **Kankaku** organization
 
 ---
 
-Built with ❤️ by [Kankaku](https://github.com/kankaku)
+Built with ❤️ from [Kankaku](https://github.com/kankaku)
