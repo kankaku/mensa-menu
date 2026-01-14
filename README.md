@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mensa Süd | Uni Rostock
 
-## Getting Started
+A modern, minimalist web application for viewing the daily menu of **Mensa Süd** at the University of Rostock. This project provides a clean, user-friendly interface to navigate daily meals, allergies, and pricing information.
 
-First, run the development server:
+## 🌟 Features
+
+- **Real-time Scraper**: Automatically fetches the latest menu data from the official Studentwerk Rostock website.
+- **AI-Powered Refinement**: Integrates with Google Gemini to process and categorize raw menu data for better accuracy and readability.
+- **Clean UI**: A minimalist "off-white and grey" aesthetic designed for maximum readability and speed.
+- **Detailed Information**: Provides pricing (Student/Staff/Guest) and allergen labels for every meal.
+- **Fully Responsive**: Optimized for both desktop and mobile devices.
+
+## 🛠️ Technology Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Scraping**: [Cheerio](https://cheerio.js.org/)
+- **AI Engine**: [Google Gemini Pro API (@google/genai)](https://ai.google.dev/docs)
+- **Styling**: Vanilla CSS with modern flex/grid layouts
+- **Deployment**: Ready for Docker and Vercel
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A Google Gemini API Key
+
+### Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/kankaku/mensa-menu.git
+   cd mensa-menu
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   Create a `.env.local` file in the root directory:
+
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
+
+## 🐳 Docker Support
+
+To run the application using Docker:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker-compose up -d
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📄 License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This project is private and intended for use within the **Kankaku** organization.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with ❤️ by [Kankaku](https://github.com/kankaku)
