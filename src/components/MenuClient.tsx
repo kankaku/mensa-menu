@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   DailyMenu,
   MenuItem as MenuItemType,
@@ -27,10 +27,7 @@ export default function MenuClient({ initialMenu }: Props) {
     loading: boolean;
   } | null>(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("mensa-lang");
-    if (saved === "en" || saved === "de") setLang(saved);
-  }, []);
+  // Always start with German - no auto-restore from localStorage
 
   const switchLang = useCallback(
     async (newLang: "de" | "en") => {
@@ -56,12 +53,8 @@ export default function MenuClient({ initialMenu }: Props) {
     [menu, translated]
   );
 
-  useEffect(() => {
-    const saved = localStorage.getItem("mensa-lang");
-    if (saved === "en" && !translated && !translating) {
-      switchLang("en");
-    }
-  }, [switchLang, translated, translating]);
+  // Removed: Auto-switch to English based on localStorage
+  // Now always starts in German, user must explicitly click EN
 
   const openModal = useCallback(
     async (item: MenuItemType) => {

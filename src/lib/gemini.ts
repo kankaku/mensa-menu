@@ -1,11 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
-import { DailyMenu, MenuSection, MenuItem } from "./types";
+import { DailyMenu } from "./types";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const MODEL_NAME = "gemini-3-flash";
+const MODEL_NAME = "gemini-3-flash-preview";
 
 export async function translateMenu(menu: DailyMenu): Promise<DailyMenu> {
   const prompt = `Translate the following German menu data to English. Only translate the food item names and section descriptions, keeping the structure intact. Return ONLY a valid JSON object with the same structure but with translated names.

@@ -20,6 +20,9 @@
 # production
 /build
 
+# translation cache
+/.translation-cache
+
 # misc
 .DS_Store
 *.pem
