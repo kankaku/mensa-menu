@@ -5,7 +5,7 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-const MODEL_NAME = "gemini-flash-latest";
+const MODEL_NAME = "gemma-3-27b";
 
 export async function translateMenu(menu: DailyMenu): Promise<DailyMenu> {
   const prompt = `Translate the following German menu data to English. Only translate the food item names and section descriptions, keeping the structure intact. Return ONLY a valid JSON object with the same structure but with translated names.
