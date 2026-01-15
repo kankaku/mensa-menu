@@ -199,6 +199,39 @@ body {
   gap: 6px;
 }
 
+.item-prices {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+.price-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-tag::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.price-tag.stud {
+  color: var(--green);
+}
+.price-tag.bed {
+  color: var(--blue);
+}
+.price-tag.gast {
+  color: var(--text-light);
+}
+
 .tag {
   display: inline-block;
   padding: 4px 10px;

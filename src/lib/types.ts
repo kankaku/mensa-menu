@@ -2,11 +2,18 @@
 
 export type DietaryCategory = "vegan" | "vegetarisch" | "Fisch" | "meat";
 
+export interface MenuPrices {
+  students: string;
+  staff: string;
+  guests: string;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
   nameEn?: string;
   category: DietaryCategory;
+  prices: MenuPrices;
   allergens: string[];
   additives: string[];
   lastServed?: string;
@@ -40,36 +47,55 @@ export interface ExplanationResponse {
   explanation: string;
 }
 
-// Allergen mappings
+// Allergen mappings - using official short codes from Mensa website
 export const ALLERGEN_LABELS: Record<string, string> = {
+  // Main allergen codes
   Ei: "Egg",
-  Erdnuss: "Peanut",
-  Fisch: "Fish",
-  Gluten: "Gluten",
-  Krebstiere: "Crustaceans",
-  Laktose: "Lactose",
-  Lupinen: "Lupins",
-  Milch: "Milk",
-  Nüsse: "Nuts",
-  Sellerie: "Celery",
-  Senf: "Mustard",
-  Sesam: "Sesame",
-  Soja: "Soy",
-  Schwefeldioxid: "Sulfites",
-  Weichtiere: "Molluscs",
+  En: "Peanut",
+  Fi: "Fish",
+  Gl: "Gluten",
+  Kr: "Crustaceans",
+  La: "Lactose",
+  Lu: "Lupins",
+  Mi: "Milk",
+  Nu: "Nuts",
+  Sw: "Sulfites",
+  Sl: "Celery",
+  Sf: "Mustard",
+  So: "Soy",
+  Se: "Sesame",
+  Wt: "Molluscs",
+  // Gluten variants
+  "Gl.Wz": "Wheat",
+  "Gl.Di": "Spelt",
+  "Gl.Ro": "Rye",
+  "Gl.Ge": "Barley",
+  "Gl.Hf": "Oats",
+  "Gl.Ka": "Kamut",
+  // Nut variants
+  "Nu.Ma": "Almonds",
+  "Nu.Ha": "Hazelnuts",
+  "Nu.Wa": "Walnuts",
+  "Nu.Ca": "Cashews",
+  "Nu.Pe": "Pecans",
+  "Nu.Pa": "Brazil Nuts",
+  "Nu.Pi": "Pistachios",
+  "Nu.Mc": "Macadamia",
+  "Nu.Qu": "Queensland Nuts",
 };
 
-// Additive mappings
+// Additive mappings - using official numeric codes from Mensa website
 export const ADDITIVE_LABELS: Record<string, string> = {
-  Farbstoff: "Colorant",
-  Konservierungsstoffe: "Preservatives",
-  Antioxidationsmittel: "Antioxidants",
-  Geschmacksverstärker: "Flavor Enhancer",
-  geschwefelt: "Sulfured",
-  geschwärzt: "Blackened",
-  gewachst: "Waxed",
-  Phosphat: "Phosphate",
-  Süßungsmittel: "Sweetener",
+  "1": "Colorant",
+  "2": "Preservatives",
+  "3": "Antioxidants",
+  "4": "Flavor Enhancer",
+  "5": "Sulfured",
+  "6": "Blackened",
+  "7": "Waxed",
+  "8": "Phosphate",
+  "9": "Sweetener",
+  "10": "Phenylalanine",
 };
 
 // Section name translations
@@ -80,92 +106,65 @@ export const SECTION_TRANSLATIONS: Record<string, string> = {
   "Mensa One Pot & Pasta": "Mensa One Pot & Pasta",
 };
 
-// Allergen tooltip descriptions
+// Allergen tooltip descriptions - using official short codes
 export const ALLERGEN_TOOLTIPS: Record<string, { de: string; en: string }> = {
   Ei: {
     de: "Enthält Eier oder Eiprodukte",
     en: "Contains eggs or egg products",
   },
-  Erdnuss: { de: "Enthält Erdnüsse", en: "Contains peanuts" },
-  Fisch: {
+  En: { de: "Enthält Erdnüsse", en: "Contains peanuts" },
+  Fi: {
     de: "Enthält Fisch oder Fischprodukte",
     en: "Contains fish or fish products",
   },
-  Gluten: {
-    de: "Enthält Weizen, Roggen, Gerste oder Hafer",
-    en: "Contains wheat, rye, barley or oats",
+  Gl: {
+    de: "Enthält glutenhaltiges Getreide",
+    en: "Contains gluten-containing grains",
   },
-  Krebstiere: {
-    de: "Enthält Krebstiere wie Garnelen, Krabben",
-    en: "Contains crustaceans like shrimp, crab",
-  },
-  Laktose: { de: "Enthält Milchzucker", en: "Contains milk sugar (lactose)" },
-  Lupinen: {
-    de: "Enthält Lupinen oder Lupinenprodukte",
-    en: "Contains lupins or lupin products",
-  },
-  Milch: {
-    de: "Enthält Milch oder Milchprodukte",
-    en: "Contains milk or dairy products",
-  },
-  Nüsse: {
-    de: "Enthält Nüsse wie Mandeln, Haselnüsse, Walnüsse",
-    en: "Contains nuts like almonds, hazelnuts, walnuts",
-  },
-  Sellerie: {
-    de: "Enthält Sellerie oder Sellerieprodukte",
-    en: "Contains celery or celery products",
-  },
-  Senf: {
-    de: "Enthält Senf oder Senfprodukte",
-    en: "Contains mustard or mustard products",
-  },
-  Sesam: { de: "Enthält Sesamsamen", en: "Contains sesame seeds" },
-  Soja: {
-    de: "Enthält Soja oder Sojaprodukte",
-    en: "Contains soy or soy products",
-  },
-  Schwefeldioxid: {
-    de: "Enthält Schwefeldioxid oder Sulfite",
-    en: "Contains sulfur dioxide or sulfites",
-  },
-  Weichtiere: {
-    de: "Enthält Weichtiere wie Muscheln, Schnecken",
-    en: "Contains molluscs like mussels, snails",
-  },
+  Kr: { de: "Enthält Krebstiere", en: "Contains crustaceans" },
+  La: { de: "Enthält Milchzucker", en: "Contains lactose" },
+  Lu: { de: "Enthält Lupinen", en: "Contains lupins" },
+  Mi: { de: "Enthält Milch", en: "Contains milk" },
+  Nu: { de: "Enthält Schalenfrüchte", en: "Contains nuts" },
+  Sw: { de: "Enthält Schwefeldioxid/Sulfite", en: "Contains sulfites" },
+  Sl: { de: "Enthält Sellerie", en: "Contains celery" },
+  Sf: { de: "Enthält Senf", en: "Contains mustard" },
+  So: { de: "Enthält Soja", en: "Contains soy" },
+  Se: { de: "Enthält Sesam", en: "Contains sesame" },
+  Wt: { de: "Enthält Weichtiere", en: "Contains molluscs" },
+  // Gluten variants
+  "Gl.Wz": { de: "Enthält Weizen", en: "Contains wheat" },
+  "Gl.Di": { de: "Enthält Dinkel", en: "Contains spelt" },
+  "Gl.Ro": { de: "Enthält Roggen", en: "Contains rye" },
+  "Gl.Ge": { de: "Enthält Gerste", en: "Contains barley" },
+  "Gl.Hf": { de: "Enthält Hafer", en: "Contains oats" },
+  "Gl.Ka": { de: "Enthält Kamut", en: "Contains kamut" },
+  // Nut variants
+  "Nu.Ma": { de: "Enthält Mandeln", en: "Contains almonds" },
+  "Nu.Ha": { de: "Enthält Haselnüsse", en: "Contains hazelnuts" },
+  "Nu.Wa": { de: "Enthält Walnüsse", en: "Contains walnuts" },
+  "Nu.Ca": { de: "Enthält Cashewkerne", en: "Contains cashews" },
+  "Nu.Pe": { de: "Enthält Pekannüsse", en: "Contains pecans" },
+  "Nu.Pa": { de: "Enthält Paranüsse", en: "Contains brazil nuts" },
+  "Nu.Pi": { de: "Enthält Pistazien", en: "Contains pistachios" },
+  "Nu.Mc": { de: "Enthält Macadamianüsse", en: "Contains macadamia" },
+  "Nu.Qu": { de: "Enthält Queenslandnüsse", en: "Contains queensland nuts" },
 };
 
-// Additive tooltip descriptions
+// Additive tooltip descriptions - using official numeric codes
 export const ADDITIVE_TOOLTIPS: Record<string, { de: string; en: string }> = {
-  Farbstoff: {
-    de: "Enthält künstliche Farbstoffe",
-    en: "Contains artificial colorants",
-  },
-  Konservierungsstoffe: {
-    de: "Enthält Konservierungsmittel",
-    en: "Contains preservatives",
-  },
-  Antioxidationsmittel: {
-    de: "Enthält Antioxidantien zur Haltbarkeit",
-    en: "Contains antioxidants for preservation",
-  },
-  Geschmacksverstärker: {
-    de: "Enthält Geschmacksverstärker wie Glutamat",
-    en: "Contains flavor enhancers like MSG",
-  },
-  geschwefelt: {
-    de: "Mit Schwefeldioxid behandelt",
-    en: "Treated with sulfur dioxide",
-  },
-  geschwärzt: { de: "Mit Farbstoff geschwärzt", en: "Blackened with colorant" },
-  gewachst: {
-    de: "Oberfläche mit Wachs behandelt",
-    en: "Surface treated with wax",
-  },
-  Phosphat: { de: "Enthält Phosphate", en: "Contains phosphates" },
-  Süßungsmittel: {
-    de: "Enthält künstliche Süßstoffe",
-    en: "Contains artificial sweeteners",
+  "1": { de: "Mit Farbstoff", en: "With colorant" },
+  "2": { de: "Mit Konservierungsstoff", en: "With preservatives" },
+  "3": { de: "Mit Antioxidationsmittel", en: "With antioxidants" },
+  "4": { de: "Mit Geschmacksverstärker", en: "With flavor enhancer" },
+  "5": { de: "Geschwefelt", en: "Sulfured" },
+  "6": { de: "Geschwärzt", en: "Blackened" },
+  "7": { de: "Gewachst", en: "Waxed" },
+  "8": { de: "Mit Phosphat", en: "With phosphate" },
+  "9": { de: "Mit Süßungsmittel", en: "With sweetener" },
+  "10": {
+    de: "Enthält Phenylalaninquelle",
+    en: "Contains phenylalanine source",
   },
 };
 

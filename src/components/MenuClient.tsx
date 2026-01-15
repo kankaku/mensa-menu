@@ -283,6 +283,26 @@ function Item({
             </span>
           ))}
         </div>
+        <div className="item-prices">
+          <span
+            className="price-tag stud"
+            title={lang === "en" ? "Student" : "Student"}
+          >
+            {lang === "en" ? "Student" : "Stud"}: {item.prices?.students || "-"}
+          </span>
+          <span
+            className="price-tag bed"
+            title={lang === "en" ? "Staff" : "Bedienstete"}
+          >
+            {lang === "en" ? "Staff" : "Bed"}: {item.prices?.staff || "-"}
+          </span>
+          <span
+            className="price-tag gast"
+            title={lang === "en" ? "Guest" : "Gast"}
+          >
+            {lang === "en" ? "Guest" : "Gast"}: {item.prices?.guests || "-"}
+          </span>
+        </div>
       </div>
       <span className="item-info">i</span>
     </div>
