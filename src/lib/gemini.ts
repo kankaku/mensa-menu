@@ -48,6 +48,65 @@ Important:
   }
 }
 
+/**
+ * Batch translate multiple German dish names to English in a single API call
+ * Returns a map of { germanName: englishName }
+ */
+export async function translateItemNames(
+  names: string[],
+): Promise<Record<string, string>> {
+  if (names.length === 0) {
+    return {};
+  }
+
+  const prompt = `Translate the following German food/dish names to English. Return ONLY a valid JSON object mapping each German name to its English translation.
+
+German names to translate:
+${JSON.stringify(names, null, 2)}
+
+Example output format:
+{
+  "Schnitzel mit Pommes": "Schnitzel with French Fries",
+  "Gemüsepfanne": "Vegetable Pan"
+}
+
+Important:
+- Translate each name accurately
+- Keep proper food terminology
+- Return valid JSON only, no markdown formatting`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+    });
+
+    const text = response.text || "";
+
+    // Clean up the response - remove markdown code blocks if present
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText.slice(7);
+    } else if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText.slice(3);
+    }
+    if (cleanedText.endsWith("```")) {
+      cleanedText = cleanedText.slice(0, -3);
+    }
+    cleanedText = cleanedText.trim();
+
+    const translations = JSON.parse(cleanedText) as Record<string, string>;
+    console.log(
+      `[Gemini] Translated ${Object.keys(translations).length} item names`,
+    );
+    return translations;
+  } catch (error) {
+    console.error("Batch translation error:", error);
+    // Return empty - caller should handle gracefully
+    return {};
+  }
+}
+
 function addBasicTranslations(menu: DailyMenu): DailyMenu {
   const sectionTranslations: Record<string, string> = {
     "Mensa Classic": "Mensa Classic",

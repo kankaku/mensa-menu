@@ -1,121 +1,178 @@
 import fs from "fs/promises";
 import path from "path";
-import { DailyMenu } from "./types";
 
 // Cache directory for storing translations
 const CACHE_DIR = path.join(process.cwd(), ".translation-cache");
 
-/**
- * Get or create the cache directory
- */
-async function ensureCacheDir(): Promise<void> {
-  try {
-    await fs.access(CACHE_DIR);
-  } catch {
-    await fs.mkdir(CACHE_DIR, { recursive: true });
-  }
+interface TranslationsCache {
+  [germanName: string]: string; // germanName -> englishName
+}
+
+interface ExplanationsCache {
+  [germanName: string]: {
+    en?: string;
+    de?: string;
+  };
 }
 
 /**
- * Generate a cache key based on the date
- * Format: YYYY-MM-DD
+ * Get today's date as YYYY-MM-DD
  */
-function getCacheKey(menu: DailyMenu): string {
-  // Extract date from menu or use current date
-  const dateMatch = menu.date.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-  if (dateMatch) {
-    // German date format DD.MM.YYYY -> YYYY-MM-DD
-    return `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
-  }
-
-  // Fallback to current date
+function getTodayKey(): string {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}-${String(now.getDate()).padStart(2, "0")}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 /**
- * Get the cache file path for a given date
+ * Ensure the cache directory for a specific date exists
  */
-function getCacheFilePath(cacheKey: string): string {
-  return path.join(CACHE_DIR, `menu-${cacheKey}.json`);
-}
-
-/**
- * Try to get a cached translation for the given menu date
- */
-export async function getCachedTranslation(
-  menu: DailyMenu,
-): Promise<DailyMenu | null> {
+async function ensureDateDir(dateKey: string): Promise<string> {
+  const dateDir = path.join(CACHE_DIR, dateKey);
   try {
-    await ensureCacheDir();
-    const cacheKey = getCacheKey(menu);
-    const cacheFile = getCacheFilePath(cacheKey);
-
-    const cached = await fs.readFile(cacheFile, "utf-8");
-    const cachedMenu = JSON.parse(cached) as DailyMenu;
-
-    console.log(`[Translation Cache] HIT for date: ${cacheKey}`);
-    return cachedMenu;
+    await fs.access(dateDir);
   } catch {
-    // Cache miss or error reading cache
+    await fs.mkdir(dateDir, { recursive: true });
+  }
+  return dateDir;
+}
+
+/**
+ * Get cached translations for today
+ * Returns a map of { germanName: englishName }
+ */
+export async function getCachedTranslations(): Promise<TranslationsCache> {
+  try {
+    const dateKey = getTodayKey();
+    const dateDir = await ensureDateDir(dateKey);
+    const filePath = path.join(dateDir, "translations.json");
+
+    const content = await fs.readFile(filePath, "utf-8");
+    const cache = JSON.parse(content) as TranslationsCache;
+    console.log(
+      `[Translation Cache] Loaded ${Object.keys(cache).length} cached translations for ${dateKey}`,
+    );
+    return cache;
+  } catch {
+    // No cache file exists yet
+    return {};
+  }
+}
+
+/**
+ * Save translations to cache (merges with existing)
+ */
+export async function setCachedTranslations(
+  newTranslations: TranslationsCache,
+): Promise<void> {
+  try {
+    const dateKey = getTodayKey();
+    const dateDir = await ensureDateDir(dateKey);
+    const filePath = path.join(dateDir, "translations.json");
+
+    // Load existing and merge
+    const existing = await getCachedTranslations();
+    const merged = { ...existing, ...newTranslations };
+
+    await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
+    console.log(
+      `[Translation Cache] Saved ${Object.keys(newTranslations).length} new translations (total: ${Object.keys(merged).length})`,
+    );
+  } catch (error) {
+    console.error("[Translation Cache] Failed to save translations:", error);
+  }
+}
+
+/**
+ * Get a cached explanation for a dish
+ */
+export async function getCachedExplanation(
+  dishName: string,
+  language: "en" | "de",
+): Promise<string | null> {
+  try {
+    const dateKey = getTodayKey();
+    const dateDir = path.join(CACHE_DIR, dateKey);
+    const filePath = path.join(dateDir, "explanations.json");
+
+    const content = await fs.readFile(filePath, "utf-8");
+    const cache = JSON.parse(content) as ExplanationsCache;
+
+    const explanation = cache[dishName]?.[language];
+    if (explanation) {
+      console.log(`[Explanation Cache] HIT for "${dishName}" (${language})`);
+      return explanation;
+    }
+    return null;
+  } catch {
     return null;
   }
 }
 
 /**
- * Save a translation to the cache
+ * Save an explanation to cache
  */
-export async function setCachedTranslation(
-  originalMenu: DailyMenu,
-  translatedMenu: DailyMenu,
+export async function setCachedExplanation(
+  dishName: string,
+  language: "en" | "de",
+  explanation: string,
 ): Promise<void> {
   try {
-    await ensureCacheDir();
-    const cacheKey = getCacheKey(originalMenu);
-    const cacheFile = getCacheFilePath(cacheKey);
+    const dateKey = getTodayKey();
+    const dateDir = await ensureDateDir(dateKey);
+    const filePath = path.join(dateDir, "explanations.json");
 
-    await fs.writeFile(cacheFile, JSON.stringify(translatedMenu, null, 2));
-    console.log(`[Translation Cache] SAVED for date: ${cacheKey}`);
+    // Load existing
+    let cache: ExplanationsCache = {};
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      cache = JSON.parse(content) as ExplanationsCache;
+    } catch {
+      // File doesn't exist yet
+    }
+
+    // Merge
+    if (!cache[dishName]) {
+      cache[dishName] = {};
+    }
+    cache[dishName][language] = explanation;
+
+    await fs.writeFile(filePath, JSON.stringify(cache, null, 2));
+    console.log(`[Explanation Cache] Saved "${dishName}" (${language})`);
   } catch (error) {
-    console.error("[Translation Cache] Failed to save cache:", error);
+    console.error("[Explanation Cache] Failed to save:", error);
   }
 }
 
 /**
- * Clean up old cache files (older than 7 days)
+ * Clean up old cache directories (older than 7 days)
  */
 export async function cleanupOldCache(): Promise<void> {
   try {
-    await ensureCacheDir();
-    const files = await fs.readdir(CACHE_DIR);
+    await fs.access(CACHE_DIR);
+    const dirs = await fs.readdir(CACHE_DIR);
     const now = new Date();
 
-    for (const file of files) {
-      if (!file.startsWith("menu-") || !file.endsWith(".json")) continue;
-
-      // Extract date from filename (menu-YYYY-MM-DD.json)
-      const dateMatch = file.match(/menu-(\d{4})-(\d{2})-(\d{2})\.json/);
+    for (const dir of dirs) {
+      // Expect format YYYY-MM-DD
+      const dateMatch = dir.match(/^(\d{4})-(\d{2})-(\d{2})$/);
       if (!dateMatch) continue;
 
-      const fileDate = new Date(
+      const dirDate = new Date(
         parseInt(dateMatch[1]),
         parseInt(dateMatch[2]) - 1,
         parseInt(dateMatch[3]),
       );
 
       const ageInDays =
-        (now.getTime() - fileDate.getTime()) / (1000 * 60 * 60 * 24);
+        (now.getTime() - dirDate.getTime()) / (1000 * 60 * 60 * 24);
 
       if (ageInDays > 7) {
-        const filePath = path.join(CACHE_DIR, file);
-        await fs.unlink(filePath);
-        console.log(`[Translation Cache] Deleted old cache: ${file}`);
+        const dirPath = path.join(CACHE_DIR, dir);
+        await fs.rm(dirPath, { recursive: true });
+        console.log(`[Cache Cleanup] Deleted old cache: ${dir}`);
       }
     }
   } catch (error) {
-    console.error("[Translation Cache] Cleanup error:", error);
+    console.error("[Cache Cleanup] Error:", error);
   }
 }
