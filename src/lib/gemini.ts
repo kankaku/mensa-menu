@@ -72,7 +72,7 @@ function addBasicTranslations(menu: DailyMenu): DailyMenu {
 
 export async function explainDish(
   dishName: string,
-  language: "en" | "de" = "en"
+  language: "en" | "de" = "en",
 ): Promise<string> {
   const languageInstruction =
     language === "en" ? "Respond in English." : "Antworten Sie auf Deutsch.";
@@ -105,7 +105,7 @@ Keep the response concise and informative. Do not use bullet points or lists.`;
 
 export async function translateText(
   text: string,
-  targetLang: "en" | "de"
+  targetLang: "en" | "de",
 ): Promise<string> {
   const prompt =
     targetLang === "en"

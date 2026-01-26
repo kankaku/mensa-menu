@@ -32,7 +32,7 @@ function getCacheKey(menu: DailyMenu): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
@@ -47,7 +47,7 @@ function getCacheFilePath(cacheKey: string): string {
  * Try to get a cached translation for the given menu date
  */
 export async function getCachedTranslation(
-  menu: DailyMenu
+  menu: DailyMenu,
 ): Promise<DailyMenu | null> {
   try {
     await ensureCacheDir();
@@ -70,7 +70,7 @@ export async function getCachedTranslation(
  */
 export async function setCachedTranslation(
   originalMenu: DailyMenu,
-  translatedMenu: DailyMenu
+  translatedMenu: DailyMenu,
 ): Promise<void> {
   try {
     await ensureCacheDir();
@@ -103,7 +103,7 @@ export async function cleanupOldCache(): Promise<void> {
       const fileDate = new Date(
         parseInt(dateMatch[1]),
         parseInt(dateMatch[2]) - 1,
-        parseInt(dateMatch[3])
+        parseInt(dateMatch[3]),
       );
 
       const ageInDays =
