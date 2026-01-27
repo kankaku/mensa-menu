@@ -14,13 +14,20 @@ import {
 
 interface Props {
   initialMenu: DailyMenu;
+  initialTranslatedMenu?: DailyMenu | null;
 }
 
-export default function MenuClient({ initialMenu }: Props) {
+export default function MenuClient({
+  initialMenu,
+  initialTranslatedMenu,
+}: Props) {
   const [menu] = useState<DailyMenu>(initialMenu);
   const [lang, setLang] = useState<"de" | "en">("de");
   const [translating, setTranslating] = useState(false);
-  const [translated, setTranslated] = useState<DailyMenu | null>(null);
+  // Use pre-loaded translations if available
+  const [translated, setTranslated] = useState<DailyMenu | null>(
+    initialTranslatedMenu ?? null,
+  );
   const [modal, setModal] = useState<{
     item: MenuItemType;
     text: string | null;
@@ -50,7 +57,7 @@ export default function MenuClient({ initialMenu }: Props) {
         }
       }
     },
-    [menu, translated]
+    [menu, translated],
   );
 
   // Removed: Auto-switch to English based on localStorage
@@ -68,7 +75,7 @@ export default function MenuClient({ initialMenu }: Props) {
         if (res.ok) {
           const data = await res.json();
           setModal((m) =>
-            m ? { ...m, text: data.explanation, loading: false } : null
+            m ? { ...m, text: data.explanation, loading: false } : null,
           );
         } else {
           throw new Error("Failed");
@@ -84,11 +91,11 @@ export default function MenuClient({ initialMenu }: Props) {
                     : "Erklärung nicht verfügbar.",
                 loading: false,
               }
-            : null
+            : null,
         );
       }
     },
-    [lang]
+    [lang],
   );
 
   const closeModal = () => setModal(null);
