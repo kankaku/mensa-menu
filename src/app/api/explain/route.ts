@@ -5,14 +5,40 @@ import {
   setCachedExplanation,
 } from "@/lib/translation-cache";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { dishName, language = "en" } = body;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    if (!isRecord(body)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const dishName = typeof body.dishName === "string" ? body.dishName.trim() : "";
+    const rawLanguage = body.language;
+    const language = rawLanguage === "de" ? "de" : "en";
 
     if (!dishName) {
       return NextResponse.json(
         { error: "Dish name is required" },
+        { status: 400 },
+      );
+    }
+    if (
+      rawLanguage !== undefined &&
+      rawLanguage !== "en" &&
+      rawLanguage !== "de"
+    ) {
+      return NextResponse.json(
+        { error: "Language must be 'en' or 'de'" },
         { status: 400 },
       );
     }

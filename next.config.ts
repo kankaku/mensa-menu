@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Enable experimental features for better performance
-  experimental: {
-    // Optimize package imports
+  turbopack: {
+    // Prevent Next.js from inferring an incorrect workspace root when
+    // multiple lockfiles exist outside this app directory.
+    root: process.cwd(),
   },
 };
 

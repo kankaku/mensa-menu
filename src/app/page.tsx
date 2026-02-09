@@ -1,6 +1,6 @@
 import { fetchLiveMenu } from "@/lib/scraper";
 import MenuClient from "@/components/MenuClient";
-import { getCachedTranslations } from "@/lib/translation-cache";
+import { getCachedTranslationsForDate } from "@/lib/translation-cache";
 import {
   DailyMenu,
   MenuSection,
@@ -42,13 +42,19 @@ function applyTranslations(
 
 export default async function Home() {
   const menu = await fetchLiveMenu();
+  const cachedTranslations = await getCachedTranslationsForDate(menu.date);
 
-  // Try to load cached translations and pre-apply them
-  const cachedTranslations = await getCachedTranslations();
-
-  // Check if we have cached translations for all menu items
-  const allItemNames = menu.sections.flatMap((s) => s.items.map((i) => i.name));
-  const allCached = allItemNames.every((name) => cachedTranslations[name]);
+  // Check if we have cached translations for all menu names we need.
+  const allNames = new Set<string>();
+  for (const section of menu.sections) {
+    for (const item of section.items) {
+      allNames.add(item.name);
+    }
+    if (!SECTION_TRANSLATIONS[section.name]) {
+      allNames.add(section.name);
+    }
+  }
+  const allCached = [...allNames].every((name) => cachedTranslations[name]);
 
   // If all items are cached, pre-apply translations
   const initialTranslatedMenu = allCached

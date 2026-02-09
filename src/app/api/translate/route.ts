@@ -7,44 +7,73 @@ import {
   SECTION_TRANSLATIONS,
 } from "@/lib/types";
 import {
-  getCachedTranslations,
-  setCachedTranslations,
+  getCachedTranslationsForDate,
+  setCachedTranslationsForDate,
   cleanupOldCache,
 } from "@/lib/translation-cache";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isDailyMenu(value: unknown): value is DailyMenu {
+  if (!isRecord(value) || !Array.isArray(value.sections)) {
+    return false;
+  }
+
+  return value.sections.every(
+    (section) =>
+      isRecord(section) &&
+      typeof section.name === "string" &&
+      Array.isArray(section.items) &&
+      section.items.every((item) => isRecord(item) && typeof item.name === "string"),
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const menu = body.menu as DailyMenu;
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
-    if (!menu) {
+    const menu = isRecord(body) ? body.menu : undefined;
+
+    if (!isDailyMenu(menu)) {
       return NextResponse.json(
-        { error: "Menu data is required" },
+        { error: "Menu data is required and must be valid" },
         { status: 400 },
       );
     }
 
-    // Load existing cached translations
-    const cachedTranslations = await getCachedTranslations();
+    const cacheDateKey = menu.date;
+
+    // Load existing cached translations for this menu day.
+    const cachedTranslations = await getCachedTranslationsForDate(cacheDateKey);
 
     // Collect all item names and section names from the current menu
-    const allItemNames: string[] = [];
-    const allSectionNames: string[] = [];
+    const allItemNames = new Set<string>();
+    const allSectionNames = new Set<string>();
 
     for (const section of menu.sections) {
       if (!SECTION_TRANSLATIONS[section.name]) {
-        allSectionNames.push(section.name);
+        allSectionNames.add(section.name);
       }
       for (const item of section.items) {
-        allItemNames.push(item.name);
+        allItemNames.add(item.name);
       }
     }
 
+    const uniqueItemNames = [...allItemNames];
+    const uniqueSectionNames = [...allSectionNames];
+
     // Find names that are NOT in cache
-    const uncachedItemNames = allItemNames.filter(
+    const uncachedItemNames = uniqueItemNames.filter(
       (name) => !cachedTranslations[name],
     );
-    const uncachedSectionNames = allSectionNames.filter(
+    const uncachedSectionNames = uniqueSectionNames.filter(
       (name) => !cachedTranslations[name],
     );
     const uncachedNames = [...uncachedItemNames, ...uncachedSectionNames];
@@ -63,11 +92,11 @@ export async function POST(request: NextRequest) {
 
       // Save new translations to cache
       if (Object.keys(newTranslations).length > 0) {
-        await setCachedTranslations(newTranslations);
+        await setCachedTranslationsForDate(newTranslations, cacheDateKey);
       }
     } else {
       console.log(
-        `[Translation] HIT - all ${allItemNames.length} items cached`,
+        `[Translation] HIT - all ${uniqueItemNames.length} items cached`,
       );
     }
 
@@ -84,9 +113,11 @@ export async function POST(request: NextRequest) {
       headers: {
         "X-Cache": cacheStatus,
         "X-Cached-Items": String(
-          allItemNames.length - uncachedItemNames.length,
+          uniqueItemNames.length - uncachedItemNames.length,
         ),
         "X-New-Items": String(uncachedItemNames.length),
+        "X-New-Names": String(uncachedNames.length),
+        "X-Cache-Date": cacheDateKey,
       },
     });
   } catch (error) {

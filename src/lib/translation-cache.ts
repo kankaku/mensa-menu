@@ -24,6 +24,17 @@ function getTodayKey(): string {
 }
 
 /**
+ * Resolve a safe cache date key.
+ * Falls back to today's key when input is missing/invalid.
+ */
+function resolveDateKey(dateKey?: string): string {
+  if (typeof dateKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return dateKey;
+  }
+  return getTodayKey();
+}
+
+/**
  * Ensure the cache directory for a specific date exists
  */
 async function ensureDateDir(dateKey: string): Promise<string> {
@@ -41,19 +52,28 @@ async function ensureDateDir(dateKey: string): Promise<string> {
  * Returns a map of { germanName: englishName }
  */
 export async function getCachedTranslations(): Promise<TranslationsCache> {
+  return getCachedTranslationsForDate();
+}
+
+/**
+ * Get cached translations for a specific menu date (YYYY-MM-DD).
+ * Falls back to today's cache when no valid date is provided.
+ */
+export async function getCachedTranslationsForDate(
+  dateKey?: string,
+): Promise<TranslationsCache> {
   try {
-    const dateKey = getTodayKey();
-    const dateDir = await ensureDateDir(dateKey);
+    const cacheDateKey = resolveDateKey(dateKey);
+    const dateDir = await ensureDateDir(cacheDateKey);
     const filePath = path.join(dateDir, "translations.json");
 
     const content = await fs.readFile(filePath, "utf-8");
     const cache = JSON.parse(content) as TranslationsCache;
     console.log(
-      `[Translation Cache] Loaded ${Object.keys(cache).length} cached translations for ${dateKey}`,
+      `[Translation Cache] Loaded ${Object.keys(cache).length} cached translations for ${cacheDateKey}`,
     );
     return cache;
   } catch {
-    // No cache file exists yet
     return {};
   }
 }
@@ -64,18 +84,28 @@ export async function getCachedTranslations(): Promise<TranslationsCache> {
 export async function setCachedTranslations(
   newTranslations: TranslationsCache,
 ): Promise<void> {
+  await setCachedTranslationsForDate(newTranslations);
+}
+
+/**
+ * Save translations to cache for a specific menu date (YYYY-MM-DD).
+ * Falls back to today's cache when no valid date is provided.
+ */
+export async function setCachedTranslationsForDate(
+  newTranslations: TranslationsCache,
+  dateKey?: string,
+): Promise<void> {
   try {
-    const dateKey = getTodayKey();
-    const dateDir = await ensureDateDir(dateKey);
+    const cacheDateKey = resolveDateKey(dateKey);
+    const dateDir = await ensureDateDir(cacheDateKey);
     const filePath = path.join(dateDir, "translations.json");
 
-    // Load existing and merge
-    const existing = await getCachedTranslations();
+    const existing = await getCachedTranslationsForDate(cacheDateKey);
     const merged = { ...existing, ...newTranslations };
 
     await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
     console.log(
-      `[Translation Cache] Saved ${Object.keys(newTranslations).length} new translations (total: ${Object.keys(merged).length})`,
+      `[Translation Cache] Saved ${Object.keys(newTranslations).length} new translations for ${cacheDateKey} (total: ${Object.keys(merged).length})`,
     );
   } catch (error) {
     console.error("[Translation Cache] Failed to save translations:", error);
