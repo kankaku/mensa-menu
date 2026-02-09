@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
 
     const dishName = typeof body.dishName === "string" ? body.dishName.trim() : "";
     const rawLanguage = body.language;
-    const language = rawLanguage === "de" ? "de" : "en";
+    const language =
+      rawLanguage === "de" || rawLanguage === "ko" ? rawLanguage : "en";
 
     if (!dishName) {
       return NextResponse.json(
@@ -35,10 +36,11 @@ export async function POST(request: NextRequest) {
     if (
       rawLanguage !== undefined &&
       rawLanguage !== "en" &&
-      rawLanguage !== "de"
+      rawLanguage !== "de" &&
+      rawLanguage !== "ko"
     ) {
       return NextResponse.json(
-        { error: "Language must be 'en' or 'de'" },
+        { error: "Language must be 'en', 'de', or 'ko'" },
         { status: 400 },
       );
     }

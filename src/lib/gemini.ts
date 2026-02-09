@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { DailyMenu } from "./types";
+import { AppLanguage, DailyMenu, TranslationTargetLanguage } from "./types";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -54,25 +54,29 @@ Important:
  */
 export async function translateItemNames(
   names: string[],
+  targetLanguage: TranslationTargetLanguage = "en",
 ): Promise<Record<string, string>> {
   if (names.length === 0) {
     return {};
   }
 
-  const prompt = `Translate the following German food/dish names to English. Return ONLY a valid JSON object mapping each German name to its English translation.
+  const languageName = targetLanguage === "ko" ? "Korean" : "English";
+
+  const prompt = `Translate the following German food/dish names to ${languageName}. Return ONLY a valid JSON object mapping each German name to its ${languageName} translation.
 
 German names to translate:
 ${JSON.stringify(names, null, 2)}
 
 Example output format:
 {
-  "Schnitzel mit Pommes": "Schnitzel with French Fries",
-  "Gemüsepfanne": "Vegetable Pan"
+  "Schnitzel mit Pommes": "${targetLanguage === "ko" ? "감자튀김을 곁들인 슈니첼" : "Schnitzel with French Fries"}",
+  "Gemüsepfanne": "${targetLanguage === "ko" ? "채소 볶음" : "Vegetable Pan"}"
 }
 
 Important:
 - Translate each name accurately
 - Keep proper food terminology
+- Preserve proper nouns when appropriate
 - Return valid JSON only, no markdown formatting`;
 
   try {
@@ -131,12 +135,15 @@ function addBasicTranslations(menu: DailyMenu): DailyMenu {
 
 export async function explainDish(
   dishName: string,
-  language: "en" | "de" = "en",
+  language: AppLanguage = "en",
 ): Promise<string> {
-  const languageInstruction =
-    language === "en" ? "Respond in English." : "Antworten Sie auf Deutsch.";
+  const languageInstruction: Record<AppLanguage, string> = {
+    en: "Respond in English.",
+    de: "Antworten Sie auf Deutsch.",
+    ko: "한국어로 답변하세요.",
+  };
 
-  const prompt = `${languageInstruction}
+  const prompt = `${languageInstruction[language]}
 
 You are a helpful food expert. Provide a brief, informative explanation (2-3 sentences) about the following German dish: "${dishName}"
 
@@ -156,20 +163,26 @@ Keep the response concise and informative. Do not use bullet points or lists.`;
     return response.text || "Unable to generate explanation.";
   } catch (error) {
     console.error("Explanation error:", error);
-    return language === "en"
-      ? "Unable to generate explanation at this time."
-      : "Die Erklärung konnte nicht generiert werden.";
+    const fallbackByLanguage: Record<AppLanguage, string> = {
+      en: "Unable to generate explanation at this time.",
+      de: "Die Erklärung konnte nicht generiert werden.",
+      ko: "지금은 설명을 생성할 수 없습니다.",
+    };
+    return fallbackByLanguage[language];
   }
 }
 
 export async function translateText(
   text: string,
-  targetLang: "en" | "de",
+  targetLang: TranslationTargetLanguage | "de",
 ): Promise<string> {
-  const prompt =
-    targetLang === "en"
-      ? `Translate the following German text to English. Return only the translation, nothing else: "${text}"`
-      : `Translate the following English text to German. Return only the translation, nothing else: "${text}"`;
+  const languagePrompts: Record<TranslationTargetLanguage | "de", string> = {
+    en: `Translate the following German text to English. Return only the translation, nothing else: "${text}"`,
+    ko: `Translate the following German text to Korean. Return only the translation, nothing else: "${text}"`,
+    de: `Translate the following English text to German. Return only the translation, nothing else: "${text}"`,
+  };
+
+  const prompt = languagePrompts[targetLang];
 
   try {
     const response = await ai.models.generateContent({

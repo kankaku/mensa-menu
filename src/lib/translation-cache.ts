@@ -1,17 +1,49 @@
 import fs from "fs/promises";
 import path from "path";
+import { AppLanguage, TranslationTargetLanguage } from "./types";
 
 // Cache directory for storing translations
 const CACHE_DIR = path.join(process.cwd(), ".translation-cache");
 
+interface TranslationEntry {
+  en?: string;
+  ko?: string;
+}
+
 interface TranslationsCache {
-  [germanName: string]: string; // germanName -> englishName
+  [germanName: string]: string | TranslationEntry;
+}
+
+type FlatTranslations = Record<string, string>;
+
+function normalizeTranslations(
+  cache: TranslationsCache,
+  language: TranslationTargetLanguage,
+): FlatTranslations {
+  const normalized: FlatTranslations = {};
+
+  for (const [germanName, translationValue] of Object.entries(cache)) {
+    if (typeof translationValue === "string") {
+      if (language === "en") {
+        normalized[germanName] = translationValue;
+      }
+      continue;
+    }
+
+    const translatedName = translationValue?.[language];
+    if (typeof translatedName === "string" && translatedName.length > 0) {
+      normalized[germanName] = translatedName;
+    }
+  }
+
+  return normalized;
 }
 
 interface ExplanationsCache {
   [germanName: string]: {
     en?: string;
     de?: string;
+    ko?: string;
   };
 }
 
@@ -51,8 +83,8 @@ async function ensureDateDir(dateKey: string): Promise<string> {
  * Get cached translations for today
  * Returns a map of { germanName: englishName }
  */
-export async function getCachedTranslations(): Promise<TranslationsCache> {
-  return getCachedTranslationsForDate();
+export async function getCachedTranslations(): Promise<FlatTranslations> {
+  return getCachedTranslationsForDate(undefined, "en");
 }
 
 /**
@@ -61,7 +93,8 @@ export async function getCachedTranslations(): Promise<TranslationsCache> {
  */
 export async function getCachedTranslationsForDate(
   dateKey?: string,
-): Promise<TranslationsCache> {
+  language: TranslationTargetLanguage = "en",
+): Promise<FlatTranslations> {
   try {
     const cacheDateKey = resolveDateKey(dateKey);
     const dateDir = await ensureDateDir(cacheDateKey);
@@ -69,10 +102,11 @@ export async function getCachedTranslationsForDate(
 
     const content = await fs.readFile(filePath, "utf-8");
     const cache = JSON.parse(content) as TranslationsCache;
+    const normalized = normalizeTranslations(cache, language);
     console.log(
-      `[Translation Cache] Loaded ${Object.keys(cache).length} cached translations for ${cacheDateKey}`,
+      `[Translation Cache] Loaded ${Object.keys(normalized).length} cached ${language} translations for ${cacheDateKey}`,
     );
-    return cache;
+    return normalized;
   } catch {
     return {};
   }
@@ -82,9 +116,9 @@ export async function getCachedTranslationsForDate(
  * Save translations to cache (merges with existing)
  */
 export async function setCachedTranslations(
-  newTranslations: TranslationsCache,
+  newTranslations: FlatTranslations,
 ): Promise<void> {
-  await setCachedTranslationsForDate(newTranslations);
+  await setCachedTranslationsForDate(newTranslations, undefined, "en");
 }
 
 /**
@@ -92,20 +126,35 @@ export async function setCachedTranslations(
  * Falls back to today's cache when no valid date is provided.
  */
 export async function setCachedTranslationsForDate(
-  newTranslations: TranslationsCache,
+  newTranslations: FlatTranslations,
   dateKey?: string,
+  language: TranslationTargetLanguage = "en",
 ): Promise<void> {
   try {
     const cacheDateKey = resolveDateKey(dateKey);
     const dateDir = await ensureDateDir(cacheDateKey);
     const filePath = path.join(dateDir, "translations.json");
 
-    const existing = await getCachedTranslationsForDate(cacheDateKey);
-    const merged = { ...existing, ...newTranslations };
+    let existing: TranslationsCache = {};
+    try {
+      const content = await fs.readFile(filePath, "utf-8");
+      existing = JSON.parse(content) as TranslationsCache;
+    } catch {
+      // File doesn't exist yet
+    }
 
-    await fs.writeFile(filePath, JSON.stringify(merged, null, 2));
+    for (const [germanName, translatedName] of Object.entries(newTranslations)) {
+      const existingValue = existing[germanName];
+      const entry: TranslationEntry =
+        typeof existingValue === "string" ? { en: existingValue } : existingValue || {};
+      entry[language] = translatedName;
+      existing[germanName] = entry;
+    }
+
+    await fs.writeFile(filePath, JSON.stringify(existing, null, 2));
+    const normalized = normalizeTranslations(existing, language);
     console.log(
-      `[Translation Cache] Saved ${Object.keys(newTranslations).length} new translations for ${cacheDateKey} (total: ${Object.keys(merged).length})`,
+      `[Translation Cache] Saved ${Object.keys(newTranslations).length} new ${language} translations for ${cacheDateKey} (total: ${Object.keys(normalized).length})`,
     );
   } catch (error) {
     console.error("[Translation Cache] Failed to save translations:", error);
@@ -117,7 +166,7 @@ export async function setCachedTranslationsForDate(
  */
 export async function getCachedExplanation(
   dishName: string,
-  language: "en" | "de",
+  language: AppLanguage,
 ): Promise<string | null> {
   try {
     const dateKey = getTodayKey();
@@ -143,7 +192,7 @@ export async function getCachedExplanation(
  */
 export async function setCachedExplanation(
   dishName: string,
-  language: "en" | "de",
+  language: AppLanguage,
   explanation: string,
 ): Promise<void> {
   try {
