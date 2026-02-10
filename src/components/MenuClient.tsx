@@ -73,7 +73,7 @@ const UI_TEXT: Record<
     guestShort: "Guest",
   },
   ko: {
-    title: "멘자 남부",
+    title: "Mensa South",
     subtitle: "로스토크 대학교",
     noMenu: "오늘은 제공되는 메뉴가 없습니다.",
     loading: "불러오는 중...",
@@ -122,7 +122,7 @@ function getSectionName(section: MenuSectionType, lang: AppLanguage): string {
 
 function getMensaName(menu: DailyMenu, lang: AppLanguage): string {
   if (lang === "en" && menu.mensaNameEn) return menu.mensaNameEn;
-  if (lang === "ko" && menu.mensaNameKo) return menu.mensaNameKo;
+  if (lang === "ko") return menu.mensaNameEn || "Mensa South";
   return menu.mensaName;
 }
 

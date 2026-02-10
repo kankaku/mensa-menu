@@ -160,10 +160,10 @@ export const SECTION_TRANSLATIONS_EN: Record<string, string> = {
 };
 
 export const SECTION_TRANSLATIONS_KO: Record<string, string> = {
-  "Mensa Classic": "멘자 클래식",
-  "Mensa Life": "멘자 라이프",
-  "Mensa Diner": "멘자 다이너",
-  "Mensa One Pot & Pasta": "멘자 원팟 & 파스타",
+  "Mensa Classic": "Mensa Classic",
+  "Mensa Life": "Mensa Life",
+  "Mensa Diner": "Mensa Diner",
+  "Mensa One Pot & Pasta": "Mensa One Pot & Pasta",
 };
 
 export const MENSA_NAME_TRANSLATIONS: Record<TranslationTargetLanguage, string> = {
