@@ -5,6 +5,7 @@ import { AppLanguage, TranslationTargetLanguage } from "./types";
 const TRANSLATION_REVALIDATE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const EXPLANATION_REVALIDATE_SECONDS = 60 * 60 * 24 * 14; // 14 days
 const TRANSLATION_CACHE_CONCURRENCY = 6;
+const TRANSLATION_CACHE_MISS = "TRANSLATION_CACHE_MISS";
 
 const EXPLANATION_FALLBACK_BY_LANGUAGE: Record<AppLanguage, string> = {
   en: "Unable to generate explanation at this time.",
@@ -12,6 +13,7 @@ const EXPLANATION_FALLBACK_BY_LANGUAGE: Record<AppLanguage, string> = {
   ko: "지금은 설명을 생성할 수 없습니다.",
 };
 const EMPTY_EXPLANATION_FALLBACK = "Unable to generate explanation.";
+const translationSeedStore = new Map<string, string>();
 
 function getTodayKey(): string {
   const now = new Date();
@@ -40,6 +42,10 @@ function withNameFallback(
   }
 
   return merged;
+}
+
+function isValidTranslation(value: string | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function isCacheableExplanation(
@@ -84,24 +90,30 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+function getTranslationSeedKey(
+  cacheDateKey: string,
+  language: TranslationTargetLanguage,
+  germanName: string,
+): string {
+  return `${cacheDateKey}|${language}|${germanName}`;
+}
+
 const getCachedTranslationForName = unstable_cache(
   async (
     cacheDateKey: string,
     language: TranslationTargetLanguage,
     germanName: string,
   ): Promise<string> => {
-    const rawTranslations = await translateItemNames([germanName], language);
-    const translated = rawTranslations[germanName];
+    const seedKey = getTranslationSeedKey(cacheDateKey, language, germanName);
+    const translated = translationSeedStore.get(seedKey);
 
-    if (typeof translated !== "string" || translated.trim().length === 0) {
-      throw new Error(
-        `Gemini returned no translation for "${germanName}" on ${cacheDateKey} (${language})`,
-      );
+    if (!isValidTranslation(translated)) {
+      throw new Error(TRANSLATION_CACHE_MISS);
     }
 
     return translated.trim();
   },
-  ["menu-item-translation-v3"],
+  ["menu-item-translation-v4"],
   { revalidate: TRANSLATION_REVALIDATE_SECONDS },
 );
 
@@ -116,7 +128,7 @@ export async function getTranslationsForMenu(
   }
 
   const cacheDateKey = resolveDateKey(dateKey);
-  const resolvedEntries = await mapWithConcurrency(
+  const cacheEntries = await mapWithConcurrency(
     normalizedNames,
     TRANSLATION_CACHE_CONCURRENCY,
     async (name) => {
@@ -134,9 +146,52 @@ export async function getTranslationsForMenu(
   );
 
   const resolvedTranslations: Record<string, string> = {};
-  for (const [name, translated] of resolvedEntries) {
+  const missingNames: string[] = [];
+  for (const [name, translated] of cacheEntries) {
     if (translated) {
       resolvedTranslations[name] = translated;
+    } else {
+      missingNames.push(name);
+    }
+  }
+
+  if (missingNames.length > 0) {
+    const batchedTranslations = await translateItemNames(missingNames, language);
+    const seededNames: string[] = [];
+
+    for (const name of missingNames) {
+      const translated = batchedTranslations[name];
+      if (!isValidTranslation(translated)) {
+        continue;
+      }
+
+      const normalized = translated.trim();
+      resolvedTranslations[name] = normalized;
+      translationSeedStore.set(
+        getTranslationSeedKey(cacheDateKey, language, name),
+        normalized,
+      );
+      seededNames.push(name);
+    }
+
+    try {
+      await mapWithConcurrency(
+        seededNames,
+        TRANSLATION_CACHE_CONCURRENCY,
+        async (name) => {
+          try {
+            await getCachedTranslationForName(cacheDateKey, language, name);
+          } catch {
+            // Best effort warm-up; response already has direct translations.
+          }
+        },
+      );
+    } finally {
+      for (const name of seededNames) {
+        translationSeedStore.delete(
+          getTranslationSeedKey(cacheDateKey, language, name),
+        );
+      }
     }
   }
 
@@ -173,6 +228,19 @@ export async function getExplanationForDish(
       `[Explanation Cache] Data cache fallback for "${normalizedDishName}" (${language})`,
       error,
     );
+
+    try {
+      const directExplanation = await explainDish(normalizedDishName, language);
+      if (isCacheableExplanation(directExplanation, language)) {
+        return directExplanation;
+      }
+    } catch (directError) {
+      console.error(
+        `[Explanation Cache] Direct explain fallback failed for "${normalizedDishName}" (${language})`,
+        directError,
+      );
+    }
+
     return EXPLANATION_FALLBACK_BY_LANGUAGE[language];
   }
 }
