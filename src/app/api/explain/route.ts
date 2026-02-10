@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { explainDish } from "@/lib/gemini";
-import {
-  getCachedExplanation,
-  setCachedExplanation,
-} from "@/lib/translation-cache";
+import { getExplanationForDish } from "@/lib/server-cache";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,30 +41,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check cache first
-    const cachedExplanation = await getCachedExplanation(dishName, language);
-    if (cachedExplanation) {
-      return NextResponse.json(
-        { explanation: cachedExplanation },
-        {
-          headers: { "X-Cache": "HIT" },
-        },
-      );
-    }
-
-    // Cache miss - call Gemini API
-    console.log(
-      `[Explanation] MISS - generating explanation for "${dishName}" (${language})`,
-    );
-    const explanation = await explainDish(dishName, language);
-
-    // Save to cache
-    await setCachedExplanation(dishName, language, explanation);
+    const explanation = await getExplanationForDish(dishName, language);
 
     return NextResponse.json(
       { explanation },
       {
-        headers: { "X-Cache": "MISS" },
+        headers: { "X-Cache": "DATA-CACHE" },
       },
     );
   } catch (error) {

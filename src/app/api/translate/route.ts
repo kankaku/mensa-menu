@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { translateItemNames } from "@/lib/gemini";
 import {
   DailyMenu,
   MenuSection,
@@ -9,11 +8,7 @@ import {
   SECTION_TRANSLATIONS_KO,
   TranslationTargetLanguage,
 } from "@/lib/types";
-import {
-  getCachedTranslationsForDate,
-  setCachedTranslationsForDate,
-  cleanupOldCache,
-} from "@/lib/translation-cache";
+import { getTranslationsForMenu } from "@/lib/server-cache";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -66,11 +61,6 @@ export async function POST(request: NextRequest) {
 
     const cacheDateKey = menu.date;
 
-    // Load existing cached translations for this menu day.
-    const cachedTranslations = await getCachedTranslationsForDate(
-      cacheDateKey,
-      language,
-    );
     const sectionTranslationMap =
       language === "ko" ? SECTION_TRANSLATIONS_KO : SECTION_TRANSLATIONS_EN;
 
@@ -89,57 +79,24 @@ export async function POST(request: NextRequest) {
 
     const uniqueItemNames = [...allItemNames];
     const uniqueSectionNames = [...allSectionNames];
+    const namesToTranslate = [...uniqueItemNames, ...uniqueSectionNames];
 
-    // Find names that are NOT in cache
-    const uncachedItemNames = uniqueItemNames.filter(
-      (name) => !cachedTranslations[name],
+    const allTranslations = await getTranslationsForMenu(
+      namesToTranslate,
+      cacheDateKey,
+      language,
     );
-    const uncachedSectionNames = uniqueSectionNames.filter(
-      (name) => !cachedTranslations[name],
-    );
-    const uncachedNames = [...uncachedItemNames, ...uncachedSectionNames];
-
-    let newTranslations: Record<string, string> = {};
-    let cacheStatus = "HIT";
-
-    // Only call Gemini API if there are uncached items
-    if (uncachedNames.length > 0) {
-      console.log(
-        `[Translation] MISS - translating ${uncachedNames.length} items via Gemini API`,
-      );
-      cacheStatus = "PARTIAL";
-
-      newTranslations = await translateItemNames(uncachedNames, language);
-
-      // Save new translations to cache
-      if (Object.keys(newTranslations).length > 0) {
-        await setCachedTranslationsForDate(newTranslations, cacheDateKey, language);
-      }
-    } else {
-      console.log(
-        `[Translation] HIT - all ${uniqueItemNames.length} items cached`,
-      );
-    }
-
-    // Merge cached + new translations
-    const allTranslations = { ...cachedTranslations, ...newTranslations };
 
     // Apply translations to the menu
     const translatedMenu = applyTranslations(menu, allTranslations, language);
 
-    // Cleanup old cache files in the background
-    cleanupOldCache().catch(console.error);
-
     return NextResponse.json(translatedMenu, {
       headers: {
-        "X-Cache": cacheStatus,
-        "X-Cached-Items": String(
-          uniqueItemNames.length - uncachedItemNames.length,
-        ),
-        "X-New-Items": String(uncachedItemNames.length),
-        "X-New-Names": String(uncachedNames.length),
+        "X-Cache": "DATA-CACHE",
         "X-Cache-Date": cacheDateKey,
         "X-Language": language,
+        "X-Translated-Items": String(uniqueItemNames.length),
+        "X-Translated-Names": String(namesToTranslate.length),
       },
     });
   } catch (error) {
