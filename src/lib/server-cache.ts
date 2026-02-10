@@ -4,6 +4,7 @@ import { AppLanguage, TranslationTargetLanguage } from "./types";
 
 const TRANSLATION_REVALIDATE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 const EXPLANATION_REVALIDATE_SECONDS = 60 * 60 * 24 * 14; // 14 days
+const TRANSLATION_CACHE_CONCURRENCY = 6;
 
 const EXPLANATION_FALLBACK_BY_LANGUAGE: Record<AppLanguage, string> = {
   en: "Unable to generate explanation at this time.",
@@ -41,22 +42,6 @@ function withNameFallback(
   return merged;
 }
 
-function pickValidTranslations(
-  names: string[],
-  translations: Record<string, string>,
-): Record<string, string> {
-  const valid: Record<string, string> = {};
-
-  for (const name of names) {
-    const translated = translations[name];
-    if (typeof translated === "string" && translated.trim().length > 0) {
-      valid[name] = translated;
-    }
-  }
-
-  return valid;
-}
-
 function isCacheableExplanation(
   explanation: string,
   language: AppLanguage,
@@ -74,25 +59,49 @@ function isCacheableExplanation(
     text !== EXPLANATION_FALLBACK_BY_LANGUAGE[language];
 }
 
-const getCachedTranslations = unstable_cache(
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await mapper(items[index]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+
+  return results;
+}
+
+const getCachedTranslationForName = unstable_cache(
   async (
     cacheDateKey: string,
     language: TranslationTargetLanguage,
-    namesKey: string,
-  ): Promise<Record<string, string>> => {
-    const names = JSON.parse(namesKey) as string[];
-    const rawTranslations = await translateItemNames(names, language);
-    const translations = pickValidTranslations(names, rawTranslations);
+    germanName: string,
+  ): Promise<string> => {
+    const rawTranslations = await translateItemNames([germanName], language);
+    const translated = rawTranslations[germanName];
 
-    if (names.length > 0 && Object.keys(translations).length === 0) {
+    if (typeof translated !== "string" || translated.trim().length === 0) {
       throw new Error(
-        `Gemini returned no translations for ${cacheDateKey} (${language})`,
+        `Gemini returned no translation for "${germanName}" on ${cacheDateKey} (${language})`,
       );
     }
 
-    return translations;
+    return translated.trim();
   },
-  ["menu-item-translations-v2"],
+  ["menu-item-translation-v3"],
   { revalidate: TRANSLATION_REVALIDATE_SECONDS },
 );
 
@@ -107,41 +116,28 @@ export async function getTranslationsForMenu(
   }
 
   const cacheDateKey = resolveDateKey(dateKey);
-  const resolvedTranslations: Record<string, string> = {};
-  let remainingNames = [...normalizedNames];
-
-  // Progressively load cached subsets so partial Gemini results can still warm cache.
-  // This avoids throwing away successful entries when one or two names are missing.
-  for (let attempt = 0; attempt < 3 && remainingNames.length > 0; attempt += 1) {
-    try {
-      const cachedTranslations = await getCachedTranslations(
-        cacheDateKey,
-        language,
-        JSON.stringify(remainingNames),
-      );
-      Object.assign(resolvedTranslations, cachedTranslations);
-
-      const unresolved = remainingNames.filter((name) => !resolvedTranslations[name]);
-      if (unresolved.length === remainingNames.length) {
-        break;
+  const resolvedEntries = await mapWithConcurrency(
+    normalizedNames,
+    TRANSLATION_CACHE_CONCURRENCY,
+    async (name) => {
+      try {
+        const translated = await getCachedTranslationForName(
+          cacheDateKey,
+          language,
+          name,
+        );
+        return [name, translated] as const;
+      } catch {
+        return [name, null] as const;
       }
-      remainingNames = unresolved;
-    } catch (error) {
-      console.error(
-        `[Translation Cache] Data cache miss for ${cacheDateKey} (${language})`,
-        error,
-      );
-      break;
-    }
-  }
+    },
+  );
 
-  if (remainingNames.length > 0) {
-    const directTranslations = await translateItemNames(remainingNames, language);
-    const validDirectTranslations = pickValidTranslations(
-      remainingNames,
-      directTranslations,
-    );
-    Object.assign(resolvedTranslations, validDirectTranslations);
+  const resolvedTranslations: Record<string, string> = {};
+  for (const [name, translated] of resolvedEntries) {
+    if (translated) {
+      resolvedTranslations[name] = translated;
+    }
   }
 
   return withNameFallback(normalizedNames, resolvedTranslations);
