@@ -6,6 +6,6 @@ name = "mensa-menu"
 script = ""
 
 [[actions]]
-name = "Run dev env"
+name = "Run `npm run dev`"
 icon = "run"
 command = "npm run dev"

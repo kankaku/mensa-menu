@@ -4,7 +4,10 @@ import {
   DailyMenu,
   MenuSection,
   MenuItem,
-  SECTION_TRANSLATIONS,
+  MENSA_NAME_TRANSLATIONS,
+  SECTION_TRANSLATIONS_EN,
+  SECTION_TRANSLATIONS_KO,
+  TranslationTargetLanguage,
 } from "@/lib/types";
 import {
   getCachedTranslationsForDate,
@@ -40,6 +43,9 @@ export async function POST(request: NextRequest) {
     }
 
     const menu = isRecord(body) ? body.menu : undefined;
+    const rawLanguage = isRecord(body) ? body.language : undefined;
+    const language: TranslationTargetLanguage =
+      rawLanguage === "ko" ? "ko" : "en";
 
     if (!isDailyMenu(menu)) {
       return NextResponse.json(
@@ -47,18 +53,33 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    if (
+      rawLanguage !== undefined &&
+      rawLanguage !== "en" &&
+      rawLanguage !== "ko"
+    ) {
+      return NextResponse.json(
+        { error: "Language must be 'en' or 'ko'" },
+        { status: 400 },
+      );
+    }
 
     const cacheDateKey = menu.date;
 
     // Load existing cached translations for this menu day.
-    const cachedTranslations = await getCachedTranslationsForDate(cacheDateKey);
+    const cachedTranslations = await getCachedTranslationsForDate(
+      cacheDateKey,
+      language,
+    );
+    const sectionTranslationMap =
+      language === "ko" ? SECTION_TRANSLATIONS_KO : SECTION_TRANSLATIONS_EN;
 
     // Collect all item names and section names from the current menu
     const allItemNames = new Set<string>();
     const allSectionNames = new Set<string>();
 
     for (const section of menu.sections) {
-      if (!SECTION_TRANSLATIONS[section.name]) {
+      if (!sectionTranslationMap[section.name]) {
         allSectionNames.add(section.name);
       }
       for (const item of section.items) {
@@ -88,11 +109,11 @@ export async function POST(request: NextRequest) {
       );
       cacheStatus = "PARTIAL";
 
-      newTranslations = await translateItemNames(uncachedNames);
+      newTranslations = await translateItemNames(uncachedNames, language);
 
       // Save new translations to cache
       if (Object.keys(newTranslations).length > 0) {
-        await setCachedTranslationsForDate(newTranslations, cacheDateKey);
+        await setCachedTranslationsForDate(newTranslations, cacheDateKey, language);
       }
     } else {
       console.log(
@@ -104,7 +125,7 @@ export async function POST(request: NextRequest) {
     const allTranslations = { ...cachedTranslations, ...newTranslations };
 
     // Apply translations to the menu
-    const translatedMenu = applyTranslations(menu, allTranslations);
+    const translatedMenu = applyTranslations(menu, allTranslations, language);
 
     // Cleanup old cache files in the background
     cleanupOldCache().catch(console.error);
@@ -118,6 +139,7 @@ export async function POST(request: NextRequest) {
         "X-New-Items": String(uncachedItemNames.length),
         "X-New-Names": String(uncachedNames.length),
         "X-Cache-Date": cacheDateKey,
+        "X-Language": language,
       },
     });
   } catch (error) {
@@ -135,26 +157,43 @@ export async function POST(request: NextRequest) {
 function applyTranslations(
   menu: DailyMenu,
   translations: Record<string, string>,
+  language: TranslationTargetLanguage,
 ): DailyMenu {
+  const sectionTranslationMap =
+    language === "ko" ? SECTION_TRANSLATIONS_KO : SECTION_TRANSLATIONS_EN;
+
   const translatedSections: MenuSection[] = menu.sections.map((section) => {
     const translatedItems: MenuItem[] = section.items.map((item) => ({
       ...item,
-      nameEn: translations[item.name] || item.name,
+      ...(language === "en"
+        ? { nameEn: translations[item.name] || item.name }
+        : { nameKo: translations[item.name] || item.name }),
     }));
 
     return {
       ...section,
-      nameEn:
-        SECTION_TRANSLATIONS[section.name] ||
-        translations[section.name] ||
-        section.name,
+      ...(language === "en"
+        ? {
+            nameEn:
+              sectionTranslationMap[section.name] ||
+              translations[section.name] ||
+              section.name,
+          }
+        : {
+            nameKo:
+              sectionTranslationMap[section.name] ||
+              translations[section.name] ||
+              section.name,
+          }),
       items: translatedItems,
     };
   });
 
   return {
     ...menu,
-    mensaNameEn: "Mensa South",
+    ...(language === "en"
+      ? { mensaNameEn: MENSA_NAME_TRANSLATIONS.en }
+      : { mensaNameKo: MENSA_NAME_TRANSLATIONS.ko }),
     sections: translatedSections,
   };
 }

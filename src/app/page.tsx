@@ -5,7 +5,8 @@ import {
   DailyMenu,
   MenuSection,
   MenuItem,
-  SECTION_TRANSLATIONS,
+  MENSA_NAME_TRANSLATIONS,
+  SECTION_TRANSLATIONS_EN,
 } from "@/lib/types";
 
 export const revalidate = 300;
@@ -26,7 +27,7 @@ function applyTranslations(
     return {
       ...section,
       nameEn:
-        SECTION_TRANSLATIONS[section.name] ||
+        SECTION_TRANSLATIONS_EN[section.name] ||
         translations[section.name] ||
         section.name,
       items: translatedItems,
@@ -35,14 +36,14 @@ function applyTranslations(
 
   return {
     ...menu,
-    mensaNameEn: "Mensa South",
+    mensaNameEn: MENSA_NAME_TRANSLATIONS.en,
     sections: translatedSections,
   };
 }
 
 export default async function Home() {
   const menu = await fetchLiveMenu();
-  const cachedTranslations = await getCachedTranslationsForDate(menu.date);
+  const cachedTranslations = await getCachedTranslationsForDate(menu.date, "en");
 
   // Check if we have cached translations for all menu names we need.
   const allNames = new Set<string>();
@@ -50,7 +51,7 @@ export default async function Home() {
     for (const item of section.items) {
       allNames.add(item.name);
     }
-    if (!SECTION_TRANSLATIONS[section.name]) {
+    if (!SECTION_TRANSLATIONS_EN[section.name]) {
       allNames.add(section.name);
     }
   }
