@@ -10,6 +10,7 @@ const EXPLANATION_FALLBACK_BY_LANGUAGE: Record<AppLanguage, string> = {
   de: "Die Erklärung konnte nicht generiert werden.",
   ko: "지금은 설명을 생성할 수 없습니다.",
 };
+const EMPTY_EXPLANATION_FALLBACK = "Unable to generate explanation.";
 
 function getTodayKey(): string {
   const now = new Date();
@@ -40,6 +41,46 @@ function withNameFallback(
   return merged;
 }
 
+function pickValidTranslations(
+  names: string[],
+  translations: Record<string, string>,
+): Record<string, string> {
+  const valid: Record<string, string> = {};
+
+  for (const name of names) {
+    const translated = translations[name];
+    if (typeof translated === "string" && translated.trim().length > 0) {
+      valid[name] = translated;
+    }
+  }
+
+  return valid;
+}
+
+function hasCompleteTranslations(
+  names: string[],
+  translations: Record<string, string>,
+): boolean {
+  return names.every((name) => typeof translations[name] === "string");
+}
+
+function isCacheableExplanation(
+  explanation: string,
+  language: AppLanguage,
+): boolean {
+  const text = explanation.trim();
+  if (!text) {
+    return false;
+  }
+
+  if (text === EMPTY_EXPLANATION_FALLBACK) {
+    return false;
+  }
+
+  return !Object.values(EXPLANATION_FALLBACK_BY_LANGUAGE).includes(text) &&
+    text !== EXPLANATION_FALLBACK_BY_LANGUAGE[language];
+}
+
 const getCachedTranslations = unstable_cache(
   async (
     cacheDateKey: string,
@@ -47,13 +88,16 @@ const getCachedTranslations = unstable_cache(
     namesKey: string,
   ): Promise<Record<string, string>> => {
     const names = JSON.parse(namesKey) as string[];
-    const translations = await translateItemNames(names, language);
+    const rawTranslations = await translateItemNames(names, language);
+    const translations = pickValidTranslations(names, rawTranslations);
 
-    if (names.length > 0 && Object.keys(translations).length === 0) {
-      throw new Error(`Gemini returned no translations for ${cacheDateKey}`);
+    if (names.length > 0 && !hasCompleteTranslations(names, translations)) {
+      throw new Error(
+        `Gemini returned incomplete translations for ${cacheDateKey} (${language})`,
+      );
     }
 
-    return withNameFallback(names, translations);
+    return translations;
   },
   ["menu-item-translations-v2"],
   { revalidate: TRANSLATION_REVALIDATE_SECONDS },
@@ -73,14 +117,23 @@ export async function getTranslationsForMenu(
   const namesKey = JSON.stringify(normalizedNames);
 
   try {
-    return await getCachedTranslations(cacheDateKey, language, namesKey);
+    const cachedTranslations = await getCachedTranslations(
+      cacheDateKey,
+      language,
+      namesKey,
+    );
+    return withNameFallback(normalizedNames, cachedTranslations);
   } catch (error) {
     console.error(
       `[Translation Cache] Data cache fallback for ${cacheDateKey} (${language})`,
       error,
     );
     const directTranslations = await translateItemNames(normalizedNames, language);
-    return withNameFallback(normalizedNames, directTranslations);
+    const validDirectTranslations = pickValidTranslations(
+      normalizedNames,
+      directTranslations,
+    );
+    return withNameFallback(normalizedNames, validDirectTranslations);
   }
 }
 
@@ -88,7 +141,7 @@ const getCachedDishExplanation = unstable_cache(
   async (dishName: string, language: AppLanguage): Promise<string> => {
     const explanation = await explainDish(dishName, language);
 
-    if (explanation === EXPLANATION_FALLBACK_BY_LANGUAGE[language]) {
+    if (!isCacheableExplanation(explanation, language)) {
       throw new Error("Gemini returned fallback explanation");
     }
 
