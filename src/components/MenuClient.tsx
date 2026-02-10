@@ -121,7 +121,7 @@ function getSectionName(section: MenuSectionType, lang: AppLanguage): string {
 }
 
 function getMensaName(menu: DailyMenu, lang: AppLanguage): string {
-  if (lang === "en" && menu.mensaNameEn) return menu.mensaNameEn;
+  if (lang === "en") return menu.mensaNameEn || "Mensa South";
   if (lang === "ko") return menu.mensaNameEn || "Mensa South";
   return menu.mensaName;
 }
