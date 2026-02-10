@@ -57,13 +57,6 @@ function pickValidTranslations(
   return valid;
 }
 
-function hasCompleteTranslations(
-  names: string[],
-  translations: Record<string, string>,
-): boolean {
-  return names.every((name) => typeof translations[name] === "string");
-}
-
 function isCacheableExplanation(
   explanation: string,
   language: AppLanguage,
@@ -91,9 +84,9 @@ const getCachedTranslations = unstable_cache(
     const rawTranslations = await translateItemNames(names, language);
     const translations = pickValidTranslations(names, rawTranslations);
 
-    if (names.length > 0 && !hasCompleteTranslations(names, translations)) {
+    if (names.length > 0 && Object.keys(translations).length === 0) {
       throw new Error(
-        `Gemini returned incomplete translations for ${cacheDateKey} (${language})`,
+        `Gemini returned no translations for ${cacheDateKey} (${language})`,
       );
     }
 
@@ -114,27 +107,44 @@ export async function getTranslationsForMenu(
   }
 
   const cacheDateKey = resolveDateKey(dateKey);
-  const namesKey = JSON.stringify(normalizedNames);
+  const resolvedTranslations: Record<string, string> = {};
+  let remainingNames = [...normalizedNames];
 
-  try {
-    const cachedTranslations = await getCachedTranslations(
-      cacheDateKey,
-      language,
-      namesKey,
-    );
-    return withNameFallback(normalizedNames, cachedTranslations);
-  } catch (error) {
-    console.error(
-      `[Translation Cache] Data cache fallback for ${cacheDateKey} (${language})`,
-      error,
-    );
-    const directTranslations = await translateItemNames(normalizedNames, language);
+  // Progressively load cached subsets so partial Gemini results can still warm cache.
+  // This avoids throwing away successful entries when one or two names are missing.
+  for (let attempt = 0; attempt < 3 && remainingNames.length > 0; attempt += 1) {
+    try {
+      const cachedTranslations = await getCachedTranslations(
+        cacheDateKey,
+        language,
+        JSON.stringify(remainingNames),
+      );
+      Object.assign(resolvedTranslations, cachedTranslations);
+
+      const unresolved = remainingNames.filter((name) => !resolvedTranslations[name]);
+      if (unresolved.length === remainingNames.length) {
+        break;
+      }
+      remainingNames = unresolved;
+    } catch (error) {
+      console.error(
+        `[Translation Cache] Data cache miss for ${cacheDateKey} (${language})`,
+        error,
+      );
+      break;
+    }
+  }
+
+  if (remainingNames.length > 0) {
+    const directTranslations = await translateItemNames(remainingNames, language);
     const validDirectTranslations = pickValidTranslations(
-      normalizedNames,
+      remainingNames,
       directTranslations,
     );
-    return withNameFallback(normalizedNames, validDirectTranslations);
+    Object.assign(resolvedTranslations, validDirectTranslations);
   }
+
+  return withNameFallback(normalizedNames, resolvedTranslations);
 }
 
 const getCachedDishExplanation = unstable_cache(
@@ -167,6 +177,6 @@ export async function getExplanationForDish(
       `[Explanation Cache] Data cache fallback for "${normalizedDishName}" (${language})`,
       error,
     );
-    return explainDish(normalizedDishName, language);
+    return EXPLANATION_FALLBACK_BY_LANGUAGE[language];
   }
 }
