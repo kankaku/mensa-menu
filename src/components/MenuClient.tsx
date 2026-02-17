@@ -289,6 +289,8 @@ export default function MenuClient({
   };
 
   const current = lang === "de" ? menu : translatedMenus[lang] || menu;
+  const showTranslationSkeleton =
+    lang !== "de" && translating && !translatedMenus[lang];
   const dateDisplay =
     lang === "de" ? current.date : formatDateForLanguage(current.date, lang);
   const text = UI_TEXT[lang];
@@ -329,7 +331,9 @@ export default function MenuClient({
       </header>
 
       <div className="sections">
-        {current.sections.length === 0 ? (
+        {showTranslationSkeleton ? (
+          <TranslationSkeleton />
+        ) : current.sections.length === 0 ? (
           <div className="empty">{text.noMenu}</div>
         ) : (
           current.sections.map((s) => (
@@ -354,9 +358,11 @@ export default function MenuClient({
             </div>
             <div className="modal-body">
               {modal.loading ? (
-                <div className="loading">
-                  <div className="spinner" />
-                  <span>{text.loading}</span>
+                <div className="explanation-skeleton" aria-label={text.loading}>
+                  <span className="sr-only">{text.loading}</span>
+                  <div className="skeleton skeleton-text skeleton-text-long" />
+                  <div className="skeleton skeleton-text" />
+                  <div className="skeleton skeleton-text skeleton-text-short" />
                 </div>
               ) : (
                 <p>{modal.text}</p>
@@ -366,6 +372,41 @@ export default function MenuClient({
         </div>
       )}
     </div>
+  );
+}
+
+function TranslationSkeleton() {
+  return (
+    <>
+      {[0, 1].map((sectionIndex) => (
+        <div className="section skeleton-section" key={sectionIndex} aria-hidden="true">
+          <div className="section-header">
+            <div className="skeleton skeleton-section-name" />
+            <span className="section-arrow open">▼</span>
+          </div>
+          <div className="section-items">
+            {[0, 1, 2].map((itemIndex) => (
+              <div className="item skeleton-item" key={itemIndex}>
+                <div className="item-content">
+                  <div className="skeleton skeleton-item-name" />
+                  <div className="skeleton-row">
+                    <span className="skeleton skeleton-pill" />
+                    <span className="skeleton skeleton-pill" />
+                    <span className="skeleton skeleton-pill" />
+                  </div>
+                  <div className="skeleton-row">
+                    <span className="skeleton skeleton-price" />
+                    <span className="skeleton skeleton-price" />
+                    <span className="skeleton skeleton-price" />
+                  </div>
+                </div>
+                <span className="item-info skeleton skeleton-info" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
