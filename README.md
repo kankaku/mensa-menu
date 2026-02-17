@@ -11,7 +11,7 @@ A modern, minimalist web application for viewing the daily menu of **Mensa Süd*
 
 ## 🛠️ Technology Stack
 
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **Scraping**: [Cheerio](https://cheerio.js.org/)
 - **AI Engine**: [Google Gemini Pro API (@google/genai)](https://ai.google.dev/docs)

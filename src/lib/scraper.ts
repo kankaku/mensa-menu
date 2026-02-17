@@ -3,6 +3,27 @@ import { DailyMenu, MenuItem, MenuPrices, MenuSection } from "./types";
 
 const MENSA_URL =
   "https://www.stw-rw.de/de/mensen-und-cafeterien/speiseplaene.html";
+const MENSA_TIME_ZONE = "Europe/Berlin";
+
+function getCurrentDateInMensaTimeZone(): string {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: MENSA_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  return `${year}-${month}-${day}`;
+}
 
 export async function fetchLiveMenu(): Promise<DailyMenu> {
   try {
@@ -16,7 +37,7 @@ export async function fetchLiveMenu(): Promise<DailyMenu> {
 
     const html = await response.text();
     const $ = cheerio.load(html);
-    const date = new Date().toISOString().split("T")[0]; // Today's date as fallback
+    const date = getCurrentDateInMensaTimeZone(); // Today's date as fallback
 
     // Find Mensa Süd
     // The structure is dl > dt (name) + dd (content)
@@ -146,7 +167,7 @@ export async function fetchLiveMenu(): Promise<DailyMenu> {
     console.error("Scraper Error:", error);
     // Return empty menu structure on error
     return {
-      date: new Date().toISOString().split("T")[0],
+      date: getCurrentDateInMensaTimeZone(),
       mensaName: "Mensa Süd",
       sections: [],
       fetchedAt: new Date().toISOString(),
