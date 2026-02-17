@@ -19,6 +19,8 @@
   --red: #c62828;
   --radius: 8px;
   --font: "IBM Plex Sans", -apple-system, sans-serif;
+  --skeleton-base: #ececec;
+  --skeleton-highlight: #f7f7f7;
 }
 
 html {
@@ -411,26 +413,116 @@ body {
   line-height: 1.7;
 }
 
-.loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-light);
-  font-size: 1rem;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
-.spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--skeleton-base);
+  border-radius: 6px;
 }
 
-@keyframes spin {
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--skeleton-highlight),
+    transparent
+  );
+  animation: skeleton-shimmer 1.2s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
   to {
-    transform: rotate(360deg);
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-section .section-header {
+  cursor: default;
+}
+
+.skeleton-section .section-header:hover,
+.skeleton-item:hover {
+  background: transparent;
+}
+
+.skeleton-item {
+  cursor: default;
+}
+
+.skeleton-section-name {
+  width: min(220px, 70%);
+  height: 22px;
+}
+
+.skeleton-item-name {
+  width: min(520px, 88%);
+  height: 20px;
+  margin-bottom: 10px;
+}
+
+.skeleton-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.skeleton-pill {
+  width: 74px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.skeleton-price {
+  width: 86px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.skeleton-info {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: transparent;
+}
+
+.explanation-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 100%;
+}
+
+.skeleton-text-long {
+  width: 95%;
+}
+
+.skeleton-text-short {
+  width: 72%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
   }
 }
 
