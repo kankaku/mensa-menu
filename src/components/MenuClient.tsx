@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import {
+  type KeyboardEvent,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import {
   AppLanguage,
   DailyMenu,
@@ -108,6 +114,49 @@ const CATEGORY_LABELS: Record<AppLanguage, Record<string, string>> = {
   },
 };
 
+function isAppLanguage(value: string | null): value is AppLanguage {
+  return value === "de" || value === "en" || value === "ko";
+}
+
+function parseLocalDate(dateInput: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateInput);
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, day] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day));
+}
+
+function formatDateForLanguage(
+  dateInput: string,
+  lang: TranslationTargetLanguage,
+): string {
+  const parsedDate = parseLocalDate(dateInput);
+  if (!parsedDate) {
+    return dateInput;
+  }
+
+  return parsedDate.toLocaleDateString(DATE_LOCALES[lang], {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function handleKeyboardActivate(
+  event: KeyboardEvent,
+  activate: () => void,
+) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  activate();
+}
+
 function getItemName(item: MenuItemType, lang: AppLanguage): string {
   if (lang === "en" && item.nameEn) return item.nameEn;
   if (lang === "ko" && item.nameKo) return item.nameKo;
@@ -142,6 +191,9 @@ export default function MenuClient({
     loading: boolean;
   } | null>(null);
 
+  const modalRequestIdRef = useRef(0);
+  const didInitLanguageRef = useRef(false);
+
   const switchLang = useCallback(
     async (newLang: AppLanguage) => {
       setLang(newLang);
@@ -171,8 +223,24 @@ export default function MenuClient({
     [menu, translatedMenus],
   );
 
+  useEffect(() => {
+    if (didInitLanguageRef.current) {
+      return;
+    }
+
+    didInitLanguageRef.current = true;
+    const storedLang = localStorage.getItem("mensa-lang");
+
+    if (isAppLanguage(storedLang)) {
+      void switchLang(storedLang);
+    }
+  }, [switchLang]);
+
   const openModal = useCallback(
     async (item: MenuItemType) => {
+      const requestId = modalRequestIdRef.current + 1;
+      modalRequestIdRef.current = requestId;
+
       setModal({ item, text: null, loading: true });
       try {
         const res = await fetch("/api/explain", {
@@ -181,40 +249,48 @@ export default function MenuClient({
           body: JSON.stringify({ dishName: item.name, language: lang }),
         });
         if (res.ok) {
-          const data = await res.json();
-          setModal((m) =>
-            m ? { ...m, text: data.explanation, loading: false } : null,
-          );
+          const data = (await res.json()) as { explanation?: string };
+          setModal((m) => {
+            if (!m || m.item.id !== item.id || modalRequestIdRef.current !== requestId) {
+              return m;
+            }
+
+            return {
+              ...m,
+              text: data.explanation || UI_TEXT[lang].explanationUnavailable,
+              loading: false,
+            };
+          });
         } else {
           throw new Error("Failed");
         }
       } catch {
+        if (modalRequestIdRef.current !== requestId) {
+          return;
+        }
+
         setModal((m) =>
-          m
+          m && m.item.id === item.id
             ? {
                 ...m,
                 text: UI_TEXT[lang].explanationUnavailable,
                 loading: false,
               }
-            : null,
+            : m,
         );
       }
     },
     [lang],
   );
 
-  const closeModal = () => setModal(null);
+  const closeModal = () => {
+    modalRequestIdRef.current += 1;
+    setModal(null);
+  };
 
   const current = lang === "de" ? menu : translatedMenus[lang] || menu;
   const dateDisplay =
-    lang === "de"
-      ? current.date
-      : new Date().toLocaleDateString(DATE_LOCALES[lang], {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
+    lang === "de" ? current.date : formatDateForLanguage(current.date, lang);
   const text = UI_TEXT[lang];
 
   return (
@@ -272,7 +348,7 @@ export default function MenuClient({
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">{getItemName(modal.item, lang)}</h3>
-              <button className="modal-close" onClick={closeModal}>
+              <button className="modal-close" onClick={closeModal} aria-label="Close">
                 ×
               </button>
             </div>
@@ -305,10 +381,18 @@ function Section({
   const [open, setOpen] = useState(true);
   const name = getSectionName(section, lang);
   const count = section.items.length;
+  const toggleOpen = () => setOpen((prev) => !prev);
 
   return (
     <div className="section">
-      <div className="section-header" onClick={() => setOpen(!open)}>
+      <div
+        className="section-header"
+        onClick={toggleOpen}
+        onKeyDown={(event) => handleKeyboardActivate(event, toggleOpen)}
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+      >
         <h2 className="section-name">
           {name}
           <span className="section-count">({count})</span>
@@ -349,7 +433,13 @@ function Item({
   };
 
   return (
-    <div className="item" onClick={onClick}>
+    <div
+      className="item"
+      onClick={onClick}
+      onKeyDown={(event) => handleKeyboardActivate(event, onClick)}
+      role="button"
+      tabIndex={0}
+    >
       <div className="item-content">
         <div className="item-name">{name}</div>
         <div className="item-tags">
