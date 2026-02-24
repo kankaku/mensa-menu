@@ -4,7 +4,6 @@ import {
   type KeyboardEvent,
   useState,
   useCallback,
-  useEffect,
   useRef,
 } from "react";
 import {
@@ -114,10 +113,6 @@ const CATEGORY_LABELS: Record<AppLanguage, Record<string, string>> = {
   },
 };
 
-function isAppLanguage(value: string | null): value is AppLanguage {
-  return value === "de" || value === "en" || value === "ko";
-}
-
 function parseLocalDate(dateInput: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateInput);
   if (!match) {
@@ -192,12 +187,10 @@ export default function MenuClient({
   } | null>(null);
 
   const modalRequestIdRef = useRef(0);
-  const didInitLanguageRef = useRef(false);
 
   const switchLang = useCallback(
     async (newLang: AppLanguage) => {
       setLang(newLang);
-      localStorage.setItem("mensa-lang", newLang);
 
       if (newLang === "de" || translatedMenus[newLang]) {
         return;
@@ -222,19 +215,6 @@ export default function MenuClient({
     },
     [menu, translatedMenus],
   );
-
-  useEffect(() => {
-    if (didInitLanguageRef.current) {
-      return;
-    }
-
-    didInitLanguageRef.current = true;
-    const storedLang = localStorage.getItem("mensa-lang");
-
-    if (isAppLanguage(storedLang)) {
-      void switchLang(storedLang);
-    }
-  }, [switchLang]);
 
   const openModal = useCallback(
     async (item: MenuItemType) => {
