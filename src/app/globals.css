@@ -113,6 +113,27 @@ body {
   gap: 24px;
 }
 
+.refresh-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.refresh-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.refresh-hint {
+  margin-top: -6px;
+  max-width: 48ch;
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
 .section {
   background: var(--bg-card);
   border: 1px solid var(--border);

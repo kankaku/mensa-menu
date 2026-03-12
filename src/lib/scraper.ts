@@ -1,35 +1,28 @@
 import * as cheerio from "cheerio";
 import { DailyMenu, MenuItem, MenuPrices, MenuSection } from "./types";
+import { getCurrentMenuDateKey } from "./menu-date";
 
 const MENSA_URL =
   "https://www.stw-rw.de/de/mensen-und-cafeterien/speiseplaene.html";
-const MENSA_TIME_ZONE = "Europe/Berlin";
 
-function getCurrentDateInMensaTimeZone(): string {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: MENSA_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+type FetchLiveMenuOptions = {
+  forceFresh?: boolean;
+};
 
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
+export async function fetchLiveMenu(
+  options: FetchLiveMenuOptions = {},
+): Promise<DailyMenu> {
+  const { forceFresh = false } = options;
 
-  if (!year || !month || !day) {
-    return new Date().toISOString().split("T")[0];
-  }
-
-  return `${year}-${month}-${day}`;
-}
-
-export async function fetchLiveMenu(): Promise<DailyMenu> {
   try {
-    const response = await fetch(MENSA_URL, {
-      next: { revalidate: 300 }, // Revalidate every 5 minutes
-    });
+    const response = await fetch(
+      MENSA_URL,
+      forceFresh
+        ? { cache: "no-store" }
+        : {
+            next: { revalidate: 300 }, // Revalidate every 5 minutes
+          },
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch menu: ${response.statusText}`);
@@ -37,7 +30,7 @@ export async function fetchLiveMenu(): Promise<DailyMenu> {
 
     const html = await response.text();
     const $ = cheerio.load(html);
-    const date = getCurrentDateInMensaTimeZone(); // Today's date as fallback
+    const date = getCurrentMenuDateKey(); // Today's date as fallback
 
     // Find Mensa Süd
     // The structure is dl > dt (name) + dd (content)
@@ -167,7 +160,7 @@ export async function fetchLiveMenu(): Promise<DailyMenu> {
     console.error("Scraper Error:", error);
     // Return empty menu structure on error
     return {
-      date: getCurrentDateInMensaTimeZone(),
+      date: getCurrentMenuDateKey(),
       mensaName: "Mensa Süd",
       sections: [],
       fetchedAt: new Date().toISOString(),
