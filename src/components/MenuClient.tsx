@@ -2,9 +2,10 @@
 
 import {
   type KeyboardEvent,
-  useState,
   useCallback,
+  useEffect,
   useRef,
+  useState,
 } from "react";
 import {
   AppLanguage,
@@ -22,6 +23,7 @@ import {
   ADDITIVE_TOOLTIPS_KO,
   CATEGORY_TOOLTIPS,
 } from "@/lib/types";
+import { getCurrentMenuDateKey } from "@/lib/menu-date";
 
 interface Props {
   initialMenu: DailyMenu;
@@ -42,6 +44,8 @@ const UI_TEXT: Record<
     subtitle: string;
     noMenu: string;
     loading: string;
+    refreshingMenu: string;
+    refreshingMenuHint: string;
     explanationUnavailable: string;
     student: string;
     staff: string;
@@ -56,6 +60,8 @@ const UI_TEXT: Record<
     subtitle: "Universität Rostock",
     noMenu: "Heute kein Menü verfügbar.",
     loading: "Laden...",
+    refreshingMenu: "Heutiger Speiseplan wird aktualisiert.",
+    refreshingMenuHint: "Wir laden die neuesten Gerichte direkt von der Mensa-Website.",
     explanationUnavailable: "Erklärung nicht verfügbar.",
     student: "Student",
     staff: "Bedienstete",
@@ -69,6 +75,8 @@ const UI_TEXT: Record<
     subtitle: "University of Rostock",
     noMenu: "No menu available today.",
     loading: "Loading...",
+    refreshingMenu: "Updating today's menu.",
+    refreshingMenuHint: "We are fetching the latest dishes directly from the Mensa source.",
     explanationUnavailable: "Could not load explanation.",
     student: "Student",
     staff: "Staff",
@@ -82,6 +90,8 @@ const UI_TEXT: Record<
     subtitle: "로스토크 대학교",
     noMenu: "오늘은 제공되는 메뉴가 없습니다.",
     loading: "불러오는 중...",
+    refreshingMenu: "오늘 메뉴를 새로 불러오고 있습니다.",
+    refreshingMenuHint: "멘자 원본 페이지에서 최신 식단을 직접 가져오는 중입니다.",
     explanationUnavailable: "설명을 불러오지 못했습니다.",
     student: "학생",
     staff: "교직원",
@@ -170,12 +180,17 @@ function getMensaName(menu: DailyMenu, lang: AppLanguage): string {
   return menu.mensaName;
 }
 
+function isMenuDateCurrent(dateKey: string): boolean {
+  return dateKey === getCurrentMenuDateKey();
+}
+
 export default function MenuClient({
   initialMenu,
   initialTranslatedMenu,
 }: Props) {
-  const [menu] = useState<DailyMenu>(initialMenu);
+  const [menu, setMenu] = useState<DailyMenu>(initialMenu);
   const [lang, setLang] = useState<AppLanguage>("de");
+  const [refreshingMenu, setRefreshingMenu] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translatedMenus, setTranslatedMenus] = useState<TranslatedMenus>(() =>
     initialTranslatedMenu ? { en: initialTranslatedMenu } : {},
@@ -187,6 +202,103 @@ export default function MenuClient({
   } | null>(null);
 
   const modalRequestIdRef = useRef(0);
+  const activeLangRef = useRef<AppLanguage>("de");
+  const translationRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    activeLangRef.current = lang;
+  }, [lang]);
+
+  const loadTranslation = useCallback(
+    async (
+      targetLang: TranslationTargetLanguage,
+      sourceMenu: DailyMenu,
+    ): Promise<boolean> => {
+      const requestId = translationRequestIdRef.current + 1;
+      translationRequestIdRef.current = requestId;
+      setTranslating(true);
+      try {
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ menu: sourceMenu, language: targetLang }),
+        });
+        if (!res.ok) {
+          return false;
+        }
+
+        const translatedMenu = (await res.json()) as DailyMenu;
+        if (translationRequestIdRef.current !== requestId) {
+          return false;
+        }
+
+        setTranslatedMenus((prev) => ({ ...prev, [targetLang]: translatedMenu }));
+        return true;
+      } catch (error) {
+        console.error(error);
+        return false;
+      } finally {
+        if (translationRequestIdRef.current === requestId) {
+          setTranslating(false);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (isMenuDateCurrent(initialMenu.date)) {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    async function refreshDailyMenu() {
+      setRefreshingMenu(true);
+
+      try {
+        const response = await fetch("/api/menu?fresh=1", {
+          cache: "no-store",
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to refresh menu");
+        }
+
+        const freshMenu = (await response.json()) as DailyMenu;
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        setMenu(freshMenu);
+        translationRequestIdRef.current += 1;
+        setTranslating(false);
+        setTranslatedMenus({});
+
+        const activeLang = activeLangRef.current;
+        if (activeLang !== "de") {
+          await loadTranslation(activeLang, freshMenu);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        console.error("Failed to refresh stale menu", error);
+      } finally {
+        if (!abortController.signal.aborted) {
+          setRefreshingMenu(false);
+        }
+      }
+    }
+
+    void refreshDailyMenu();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [initialMenu.date, loadTranslation]);
 
   const switchLang = useCallback(
     async (newLang: AppLanguage) => {
@@ -196,24 +308,9 @@ export default function MenuClient({
         return;
       }
 
-      setTranslating(true);
-      try {
-        const res = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ menu, language: newLang }),
-        });
-        if (res.ok) {
-          const translatedMenu = (await res.json()) as DailyMenu;
-          setTranslatedMenus((prev) => ({ ...prev, [newLang]: translatedMenu }));
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setTranslating(false);
-      }
+      await loadTranslation(newLang, menu);
     },
-    [menu, translatedMenus],
+    [loadTranslation, menu, translatedMenus],
   );
 
   const openModal = useCallback(
@@ -269,10 +366,13 @@ export default function MenuClient({
   };
 
   const current = lang === "de" ? menu : translatedMenus[lang] || menu;
+  const todayDate = getCurrentMenuDateKey();
+  const displayedDate = refreshingMenu ? todayDate : current.date;
+  const showMenuRefreshSkeleton = refreshingMenu;
   const showTranslationSkeleton =
-    lang !== "de" && translating && !translatedMenus[lang];
+    !showMenuRefreshSkeleton && lang !== "de" && translating && !translatedMenus[lang];
   const dateDisplay =
-    lang === "de" ? current.date : formatDateForLanguage(current.date, lang);
+    lang === "de" ? displayedDate : formatDateForLanguage(displayedDate, lang);
   const text = UI_TEXT[lang];
 
   return (
@@ -288,21 +388,21 @@ export default function MenuClient({
             <button
               className={`lang-btn ${lang === "de" ? "active" : ""}`}
               onClick={() => switchLang("de")}
-              disabled={translating}
+              disabled={translating || refreshingMenu}
             >
               DE
             </button>
             <button
               className={`lang-btn ${lang === "en" ? "active" : ""}`}
               onClick={() => switchLang("en")}
-              disabled={translating}
+              disabled={translating || refreshingMenu}
             >
               EN
             </button>
             <button
               className={`lang-btn ${lang === "ko" ? "active" : ""}`}
               onClick={() => switchLang("ko")}
-              disabled={translating}
+              disabled={translating || refreshingMenu}
             >
               KO
             </button>
@@ -311,7 +411,9 @@ export default function MenuClient({
       </header>
 
       <div className="sections">
-        {showTranslationSkeleton ? (
+        {showMenuRefreshSkeleton ? (
+          <MenuRefreshSkeleton text={text} />
+        ) : showTranslationSkeleton ? (
           <TranslationSkeleton />
         ) : current.sections.length === 0 ? (
           <div className="empty">{text.noMenu}</div>
@@ -351,6 +453,20 @@ export default function MenuClient({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MenuRefreshSkeleton({
+  text,
+}: {
+  text: (typeof UI_TEXT)[AppLanguage];
+}) {
+  return (
+    <div className="refresh-state" role="status" aria-live="polite">
+      <p className="refresh-label">{text.refreshingMenu}</p>
+      <p className="refresh-hint">{text.refreshingMenuHint}</p>
+      <TranslationSkeleton />
     </div>
   );
 }
