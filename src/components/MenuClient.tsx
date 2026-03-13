@@ -40,7 +40,7 @@ const LANGUAGE_OPTIONS: Array<{ code: AppLanguage; label: string }> = [
   { code: "de", label: "DE" },
   { code: "en", label: "EN" },
   { code: "ko", label: "KO" },
-  { code: "ja", label: "JA" },
+  { code: "ja", label: "JP" },
 ];
 
 const DATE_LOCALES: Record<TranslationTargetLanguage, string> = {
