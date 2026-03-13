@@ -5,6 +5,7 @@ import {
   MenuItem,
   MENSA_NAME_TRANSLATIONS,
   SECTION_TRANSLATIONS_EN,
+  SECTION_TRANSLATIONS_JA,
   SECTION_TRANSLATIONS_KO,
   TranslationTargetLanguage,
 } from "@/lib/types";
@@ -28,6 +29,68 @@ function isDailyMenu(value: unknown): value is DailyMenu {
   );
 }
 
+function getSectionTranslationMap(
+  language: TranslationTargetLanguage,
+): Record<string, string> {
+  switch (language) {
+    case "ko":
+      return SECTION_TRANSLATIONS_KO;
+    case "ja":
+      return SECTION_TRANSLATIONS_JA;
+    case "en":
+    default:
+      return SECTION_TRANSLATIONS_EN;
+  }
+}
+
+function applyItemTranslation(
+  item: MenuItem,
+  translatedName: string,
+  language: TranslationTargetLanguage,
+): MenuItem {
+  switch (language) {
+    case "ko":
+      return { ...item, nameKo: translatedName };
+    case "ja":
+      return { ...item, nameJa: translatedName };
+    case "en":
+    default:
+      return { ...item, nameEn: translatedName };
+  }
+}
+
+function applySectionTranslation(
+  section: MenuSection,
+  translatedName: string,
+  items: MenuItem[],
+  language: TranslationTargetLanguage,
+): MenuSection {
+  switch (language) {
+    case "ko":
+      return { ...section, nameKo: translatedName, items };
+    case "ja":
+      return { ...section, nameJa: translatedName, items };
+    case "en":
+    default:
+      return { ...section, nameEn: translatedName, items };
+  }
+}
+
+function applyMensaNameTranslation(
+  menu: DailyMenu,
+  language: TranslationTargetLanguage,
+): DailyMenu {
+  switch (language) {
+    case "ko":
+      return { ...menu, mensaNameKo: MENSA_NAME_TRANSLATIONS.ko };
+    case "ja":
+      return { ...menu, mensaNameJa: MENSA_NAME_TRANSLATIONS.ja };
+    case "en":
+    default:
+      return { ...menu, mensaNameEn: MENSA_NAME_TRANSLATIONS.en };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     let body: unknown;
@@ -40,7 +103,7 @@ export async function POST(request: NextRequest) {
     const menu = isRecord(body) ? body.menu : undefined;
     const rawLanguage = isRecord(body) ? body.language : undefined;
     const language: TranslationTargetLanguage =
-      rawLanguage === "ko" ? "ko" : "en";
+      rawLanguage === "ko" || rawLanguage === "ja" ? rawLanguage : "en";
 
     if (!isDailyMenu(menu)) {
       return NextResponse.json(
@@ -51,18 +114,18 @@ export async function POST(request: NextRequest) {
     if (
       rawLanguage !== undefined &&
       rawLanguage !== "en" &&
-      rawLanguage !== "ko"
+      rawLanguage !== "ko" &&
+      rawLanguage !== "ja"
     ) {
       return NextResponse.json(
-        { error: "Language must be 'en' or 'ko'" },
+        { error: "Language must be 'en', 'ko', or 'ja'" },
         { status: 400 },
       );
     }
 
     const cacheDateKey = menu.date;
 
-    const sectionTranslationMap =
-      language === "ko" ? SECTION_TRANSLATIONS_KO : SECTION_TRANSLATIONS_EN;
+    const sectionTranslationMap = getSectionTranslationMap(language);
 
     // Collect all item names and section names from the current menu
     const allItemNames = new Set<string>();
@@ -116,41 +179,34 @@ function applyTranslations(
   translations: Record<string, string>,
   language: TranslationTargetLanguage,
 ): DailyMenu {
-  const sectionTranslationMap =
-    language === "ko" ? SECTION_TRANSLATIONS_KO : SECTION_TRANSLATIONS_EN;
+  const sectionTranslationMap = getSectionTranslationMap(language);
 
   const translatedSections: MenuSection[] = menu.sections.map((section) => {
-    const translatedItems: MenuItem[] = section.items.map((item) => ({
-      ...item,
-      ...(language === "en"
-        ? { nameEn: translations[item.name] || item.name }
-        : { nameKo: translations[item.name] || item.name }),
-    }));
+    const translatedItems: MenuItem[] = section.items.map((item) =>
+      applyItemTranslation(
+        item,
+        translations[item.name] || item.name,
+        language,
+      ),
+    );
+    const translatedSectionName =
+      sectionTranslationMap[section.name] ||
+      translations[section.name] ||
+      section.name;
 
-    return {
-      ...section,
-      ...(language === "en"
-        ? {
-            nameEn:
-              sectionTranslationMap[section.name] ||
-              translations[section.name] ||
-              section.name,
-          }
-        : {
-            nameKo:
-              sectionTranslationMap[section.name] ||
-              translations[section.name] ||
-              section.name,
-          }),
-      items: translatedItems,
-    };
+    return applySectionTranslation(
+      section,
+      translatedSectionName,
+      translatedItems,
+      language,
+    );
   });
 
-  return {
-    ...menu,
-    ...(language === "en"
-      ? { mensaNameEn: MENSA_NAME_TRANSLATIONS.en }
-      : { mensaNameKo: MENSA_NAME_TRANSLATIONS.ko }),
-    sections: translatedSections,
-  };
+  return applyMensaNameTranslation(
+    {
+      ...menu,
+      sections: translatedSections,
+    },
+    language,
+  );
 }

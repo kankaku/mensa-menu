@@ -1,6 +1,6 @@
 // Types for Mensa Menu Application
 
-export type AppLanguage = "de" | "en" | "ko";
+export type AppLanguage = "de" | "en" | "ko" | "ja";
 export type TranslationTargetLanguage = Exclude<AppLanguage, "de">;
 
 export type DietaryCategory = "vegan" | "vegetarisch" | "Fisch" | "meat";
@@ -16,6 +16,7 @@ export interface MenuItem {
   name: string;
   nameEn?: string;
   nameKo?: string;
+  nameJa?: string;
   category: DietaryCategory;
   prices: MenuPrices;
   allergens: string[];
@@ -28,6 +29,7 @@ export interface MenuSection {
   name: string;
   nameEn?: string;
   nameKo?: string;
+  nameJa?: string;
   items: MenuItem[];
 }
 
@@ -36,6 +38,7 @@ export interface DailyMenu {
   mensaName: string;
   mensaNameEn?: string;
   mensaNameKo?: string;
+  mensaNameJa?: string;
   sections: MenuSection[];
   fetchedAt: string;
 }
@@ -124,6 +127,39 @@ export const ALLERGEN_LABELS_KO: Record<string, string> = {
   "Nu.Qu": "퀸즐랜드 너트",
 };
 
+export const ALLERGEN_LABELS_JA: Record<string, string> = {
+  Ei: "卵",
+  En: "ピーナッツ",
+  Fi: "魚",
+  Gl: "グルテン",
+  Kr: "甲殻類",
+  La: "乳糖",
+  Lu: "ルピナス",
+  Mi: "牛乳",
+  Nu: "ナッツ類",
+  Sw: "亜硫酸塩",
+  Sl: "セロリ",
+  Sf: "マスタード",
+  So: "大豆",
+  Se: "ごま",
+  Wt: "軟体動物",
+  "Gl.Wz": "小麦",
+  "Gl.Di": "スペルト小麦",
+  "Gl.Ro": "ライ麦",
+  "Gl.Ge": "大麦",
+  "Gl.Hf": "オーツ麦",
+  "Gl.Ka": "カムート",
+  "Nu.Ma": "アーモンド",
+  "Nu.Ha": "ヘーゼルナッツ",
+  "Nu.Wa": "くるみ",
+  "Nu.Ca": "カシューナッツ",
+  "Nu.Pe": "ピーカンナッツ",
+  "Nu.Pa": "ブラジルナッツ",
+  "Nu.Pi": "ピスタチオ",
+  "Nu.Mc": "マカダミアナッツ",
+  "Nu.Qu": "クイーンズランドナッツ",
+};
+
 // Additive mappings - using official numeric codes from Mensa website
 export const ADDITIVE_LABELS: Record<string, string> = {
   "1": "Colorant",
@@ -151,6 +187,19 @@ export const ADDITIVE_LABELS_KO: Record<string, string> = {
   "10": "페닐알라닌 함유",
 };
 
+export const ADDITIVE_LABELS_JA: Record<string, string> = {
+  "1": "着色料",
+  "2": "保存料",
+  "3": "酸化防止剤",
+  "4": "調味料",
+  "5": "亜硫酸処理",
+  "6": "黒変処理",
+  "7": "ワックス処理",
+  "8": "リン酸塩",
+  "9": "甘味料",
+  "10": "フェニルアラニン源",
+};
+
 // Section name translations
 export const SECTION_TRANSLATIONS_EN: Record<string, string> = {
   "Mensa Classic": "Mensa Classic",
@@ -166,15 +215,24 @@ export const SECTION_TRANSLATIONS_KO: Record<string, string> = {
   "Mensa One Pot & Pasta": "Mensa One Pot & Pasta",
 };
 
+export const SECTION_TRANSLATIONS_JA: Record<string, string> = {
+  "Mensa Classic": "Mensa Classic",
+  "Mensa Life": "Mensa Life",
+  "Mensa Diner": "Mensa Diner",
+  "Mensa One Pot & Pasta": "Mensa One Pot & Pasta",
+};
+
 export const MENSA_NAME_TRANSLATIONS: Record<TranslationTargetLanguage, string> = {
   en: "Mensa South",
   ko: "멘자 남부",
+  ja: "メンザ南部",
 };
 
 type TooltipText = {
   de: string;
   en: string;
   ko?: string;
+  ja?: string;
 };
 
 // Allergen tooltip descriptions - using official short codes
@@ -255,6 +313,39 @@ export const ALLERGEN_TOOLTIPS_KO: Record<string, string> = {
   "Nu.Qu": "퀸즐랜드 너트가 포함되어 있습니다",
 };
 
+export const ALLERGEN_TOOLTIPS_JA: Record<string, string> = {
+  Ei: "卵または卵由来成分を含みます",
+  En: "ピーナッツを含みます",
+  Fi: "魚または魚由来成分を含みます",
+  Gl: "グルテンを含む穀物を含みます",
+  Kr: "甲殻類を含みます",
+  La: "乳糖を含みます",
+  Lu: "ルピナスを含みます",
+  Mi: "牛乳を含みます",
+  Nu: "ナッツ類を含みます",
+  Sw: "亜硫酸塩を含みます",
+  Sl: "セロリを含みます",
+  Sf: "マスタードを含みます",
+  So: "大豆を含みます",
+  Se: "ごまを含みます",
+  Wt: "軟体動物を含みます",
+  "Gl.Wz": "小麦を含みます",
+  "Gl.Di": "スペルト小麦を含みます",
+  "Gl.Ro": "ライ麦を含みます",
+  "Gl.Ge": "大麦を含みます",
+  "Gl.Hf": "オーツ麦を含みます",
+  "Gl.Ka": "カムートを含みます",
+  "Nu.Ma": "アーモンドを含みます",
+  "Nu.Ha": "ヘーゼルナッツを含みます",
+  "Nu.Wa": "くるみを含みます",
+  "Nu.Ca": "カシューナッツを含みます",
+  "Nu.Pe": "ピーカンナッツを含みます",
+  "Nu.Pa": "ブラジルナッツを含みます",
+  "Nu.Pi": "ピスタチオを含みます",
+  "Nu.Mc": "マカダミアナッツを含みます",
+  "Nu.Qu": "クイーンズランドナッツを含みます",
+};
+
 // Additive tooltip descriptions - using official numeric codes
 export const ADDITIVE_TOOLTIPS: Record<string, TooltipText> = {
   "1": { de: "Mit Farbstoff", en: "With colorant" },
@@ -285,26 +376,43 @@ export const ADDITIVE_TOOLTIPS_KO: Record<string, string> = {
   "10": "페닐알라닌 공급원이 포함되어 있습니다",
 };
 
+export const ADDITIVE_TOOLTIPS_JA: Record<string, string> = {
+  "1": "着色料を使用しています",
+  "2": "保存料を使用しています",
+  "3": "酸化防止剤を使用しています",
+  "4": "調味料を使用しています",
+  "5": "亜硫酸処理されています",
+  "6": "黒変処理されています",
+  "7": "ワックス処理されています",
+  "8": "リン酸塩を使用しています",
+  "9": "甘味料を使用しています",
+  "10": "フェニルアラニン源を含みます",
+};
+
 // Dietary category tooltips
 export const CATEGORY_TOOLTIPS: Record<string, TooltipText> = {
   vegan: {
     de: "Ohne tierische Produkte",
     en: "No animal products",
     ko: "동물성 재료 없음",
+    ja: "動物性食材不使用",
   },
   vegetarisch: {
     de: "Ohne Fleisch, kann Milch/Eier enthalten",
     en: "No meat, may contain dairy/eggs",
     ko: "고기 없음, 유제품/달걀 포함 가능",
+    ja: "肉不使用、乳製品や卵を含む場合があります",
   },
   Fisch: {
     de: "Enthält Fisch",
     en: "Contains fish",
     ko: "생선 포함",
+    ja: "魚を含みます",
   },
   meat: {
     de: "Enthält Fleisch",
     en: "Contains meat",
     ko: "육류 포함",
+    ja: "肉を含みます",
   },
 };

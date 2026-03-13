@@ -15,11 +15,15 @@ import {
   TranslationTargetLanguage,
   ALLERGEN_LABELS,
   ADDITIVE_LABELS,
+  ALLERGEN_LABELS_JA,
   ALLERGEN_LABELS_KO,
+  ADDITIVE_LABELS_JA,
   ADDITIVE_LABELS_KO,
   ALLERGEN_TOOLTIPS,
   ADDITIVE_TOOLTIPS,
+  ALLERGEN_TOOLTIPS_JA,
   ALLERGEN_TOOLTIPS_KO,
+  ADDITIVE_TOOLTIPS_JA,
   ADDITIVE_TOOLTIPS_KO,
   CATEGORY_TOOLTIPS,
 } from "@/lib/types";
@@ -32,9 +36,17 @@ interface Props {
 
 type TranslatedMenus = Partial<Record<TranslationTargetLanguage, DailyMenu>>;
 
+const LANGUAGE_OPTIONS: Array<{ code: AppLanguage; label: string }> = [
+  { code: "de", label: "DE" },
+  { code: "en", label: "EN" },
+  { code: "ko", label: "KO" },
+  { code: "ja", label: "JP" },
+];
+
 const DATE_LOCALES: Record<TranslationTargetLanguage, string> = {
   en: "en-US",
   ko: "ko-KR",
+  ja: "ja-JP",
 };
 
 const UI_TEXT: Record<
@@ -100,6 +112,21 @@ const UI_TEXT: Record<
     staffShort: "교직원",
     guestShort: "외부인",
   },
+  ja: {
+    title: "メンザ南部",
+    subtitle: "ロストック大学",
+    noMenu: "本日のメニューはありません。",
+    loading: "読み込み中...",
+    refreshingMenu: "本日のメニューを更新しています。",
+    refreshingMenuHint: "メンザの元ページから最新の料理を直接取得しています。",
+    explanationUnavailable: "説明を読み込めませんでした。",
+    student: "学生",
+    staff: "職員",
+    guest: "一般",
+    studentShort: "学生",
+    staffShort: "職員",
+    guestShort: "一般",
+  },
 };
 
 const CATEGORY_LABELS: Record<AppLanguage, Record<string, string>> = {
@@ -120,6 +147,12 @@ const CATEGORY_LABELS: Record<AppLanguage, Record<string, string>> = {
     vegetarisch: "채식",
     Fisch: "생선",
     meat: "육류",
+  },
+  ja: {
+    vegan: "ヴィーガン",
+    vegetarisch: "ベジタリアン",
+    Fisch: "魚",
+    meat: "肉",
   },
 };
 
@@ -163,21 +196,101 @@ function handleKeyboardActivate(
 }
 
 function getItemName(item: MenuItemType, lang: AppLanguage): string {
-  if (lang === "en" && item.nameEn) return item.nameEn;
-  if (lang === "ko" && item.nameKo) return item.nameKo;
-  return item.name;
+  switch (lang) {
+    case "en":
+      return item.nameEn || item.name;
+    case "ko":
+      return item.nameKo || item.name;
+    case "ja":
+      return item.nameJa || item.name;
+    case "de":
+    default:
+      return item.name;
+  }
 }
 
 function getSectionName(section: MenuSectionType, lang: AppLanguage): string {
-  if (lang === "en" && section.nameEn) return section.nameEn;
-  if (lang === "ko" && section.nameKo) return section.nameKo;
-  return section.name;
+  switch (lang) {
+    case "en":
+      return section.nameEn || section.name;
+    case "ko":
+      return section.nameKo || section.name;
+    case "ja":
+      return section.nameJa || section.name;
+    case "de":
+    default:
+      return section.name;
+  }
 }
 
 function getMensaName(menu: DailyMenu, lang: AppLanguage): string {
-  if (lang === "en") return menu.mensaNameEn || "Mensa South";
-  if (lang === "ko") return menu.mensaNameEn || "Mensa South";
-  return menu.mensaName;
+  switch (lang) {
+    case "en":
+      return menu.mensaNameEn || "Mensa South";
+    case "ko":
+      return menu.mensaNameKo || "멘자 남부";
+    case "ja":
+      return menu.mensaNameJa || "メンザ南部";
+    case "de":
+    default:
+      return menu.mensaName;
+  }
+}
+
+function getAllergenLabel(code: string, lang: AppLanguage): string {
+  switch (lang) {
+    case "en":
+      return ALLERGEN_LABELS[code] || code;
+    case "ko":
+      return ALLERGEN_LABELS_KO[code] || ALLERGEN_LABELS[code] || code;
+    case "ja":
+      return ALLERGEN_LABELS_JA[code] || ALLERGEN_LABELS[code] || code;
+    case "de":
+    default:
+      return code;
+  }
+}
+
+function getAllergenTooltip(code: string, lang: AppLanguage): string | undefined {
+  switch (lang) {
+    case "de":
+    case "en":
+      return ALLERGEN_TOOLTIPS[code]?.[lang];
+    case "ko":
+      return ALLERGEN_TOOLTIPS_KO[code] || ALLERGEN_TOOLTIPS[code]?.en;
+    case "ja":
+      return ALLERGEN_TOOLTIPS_JA[code] || ALLERGEN_TOOLTIPS[code]?.en;
+    default:
+      return undefined;
+  }
+}
+
+function getAdditiveLabel(code: string, lang: AppLanguage): string {
+  switch (lang) {
+    case "en":
+      return ADDITIVE_LABELS[code] || code;
+    case "ko":
+      return ADDITIVE_LABELS_KO[code] || ADDITIVE_LABELS[code] || code;
+    case "ja":
+      return ADDITIVE_LABELS_JA[code] || ADDITIVE_LABELS[code] || code;
+    case "de":
+    default:
+      return code;
+  }
+}
+
+function getAdditiveTooltip(code: string, lang: AppLanguage): string | undefined {
+  switch (lang) {
+    case "de":
+    case "en":
+      return ADDITIVE_TOOLTIPS[code]?.[lang];
+    case "ko":
+      return ADDITIVE_TOOLTIPS_KO[code] || ADDITIVE_TOOLTIPS[code]?.en;
+    case "ja":
+      return ADDITIVE_TOOLTIPS_JA[code] || ADDITIVE_TOOLTIPS[code]?.en;
+    default:
+      return undefined;
+  }
 }
 
 function isMenuDateCurrent(dateKey: string): boolean {
@@ -385,27 +498,16 @@ export default function MenuClient({
             <p className="date">{dateDisplay}</p>
           </div>
           <div className="lang-toggle">
-            <button
-              className={`lang-btn ${lang === "de" ? "active" : ""}`}
-              onClick={() => switchLang("de")}
-              disabled={translating || refreshingMenu}
-            >
-              DE
-            </button>
-            <button
-              className={`lang-btn ${lang === "en" ? "active" : ""}`}
-              onClick={() => switchLang("en")}
-              disabled={translating || refreshingMenu}
-            >
-              EN
-            </button>
-            <button
-              className={`lang-btn ${lang === "ko" ? "active" : ""}`}
-              onClick={() => switchLang("ko")}
-              disabled={translating || refreshingMenu}
-            >
-              KO
-            </button>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <button
+                key={option.code}
+                className={`lang-btn ${lang === option.code ? "active" : ""}`}
+                onClick={() => switchLang(option.code)}
+                disabled={translating || refreshingMenu}
+              >
+                {option.label}
+              </button>
+            ))}
           </div>
         </div>
       </header>
@@ -594,40 +696,18 @@ function Item({
             <span
               key={a}
               className="tag allergen"
-              data-tooltip={
-                lang === "ko"
-                  ? ALLERGEN_TOOLTIPS_KO[a] ||
-                    ALLERGEN_TOOLTIPS[a]?.ko ||
-                    ALLERGEN_TOOLTIPS[a]?.en ||
-                    undefined
-                  : ALLERGEN_TOOLTIPS[a]?.[lang] || undefined
-              }
+              data-tooltip={getAllergenTooltip(a, lang)}
             >
-              {lang === "de"
-                ? a
-                : lang === "ko"
-                  ? ALLERGEN_LABELS_KO[a] || ALLERGEN_LABELS[a] || a
-                  : ALLERGEN_LABELS[a] || a}
+              {getAllergenLabel(a, lang)}
             </span>
           ))}
           {item.additives.map((a) => (
             <span
               key={a}
               className="tag additive"
-              data-tooltip={
-                lang === "ko"
-                  ? ADDITIVE_TOOLTIPS_KO[a] ||
-                    ADDITIVE_TOOLTIPS[a]?.ko ||
-                    ADDITIVE_TOOLTIPS[a]?.en ||
-                    undefined
-                  : ADDITIVE_TOOLTIPS[a]?.[lang] || undefined
-              }
+              data-tooltip={getAdditiveTooltip(a, lang)}
             >
-              {lang === "de"
-                ? a
-                : lang === "ko"
-                  ? ADDITIVE_LABELS_KO[a] || ADDITIVE_LABELS[a] || a
-                  : ADDITIVE_LABELS[a] || a}
+              {getAdditiveLabel(a, lang)}
             </span>
           ))}
         </div>
