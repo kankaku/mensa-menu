@@ -19,17 +19,26 @@ export async function translateItemNames(
     return {};
   }
 
-  const languageName = targetLanguage === "ko" ? "Korean" : "English";
+  const languageName: Record<TranslationTargetLanguage, string> = {
+    en: "English",
+    ko: "Korean",
+    ja: "Japanese",
+  };
+  const exampleTranslations: Record<TranslationTargetLanguage, string[]> = {
+    en: ["Schnitzel with French Fries", "Vegetable Pan"],
+    ko: ["감자튀김을 곁들인 슈니첼", "채소 볶음"],
+    ja: ["フライドポテト添えシュニッツェル", "野菜炒め"],
+  };
 
-  const prompt = `Translate the following German food/dish names to ${languageName}. Return ONLY a valid JSON object mapping each German name to its ${languageName} translation.
+  const prompt = `Translate the following German food/dish names to ${languageName[targetLanguage]}. Return ONLY a valid JSON object mapping each German name to its ${languageName[targetLanguage]} translation.
 
 German names to translate:
 ${JSON.stringify(names, null, 2)}
 
 Example output format:
 {
-  "Schnitzel mit Pommes": "${targetLanguage === "ko" ? "감자튀김을 곁들인 슈니첼" : "Schnitzel with French Fries"}",
-  "Gemüsepfanne": "${targetLanguage === "ko" ? "채소 볶음" : "Vegetable Pan"}"
+  "Schnitzel mit Pommes": "${exampleTranslations[targetLanguage][0]}",
+  "Gemüsepfanne": "${exampleTranslations[targetLanguage][1]}"
 }
 
 Important:
@@ -78,6 +87,7 @@ export async function explainDish(
     en: "Respond in English.",
     de: "Antworten Sie auf Deutsch.",
     ko: "한국어로 답변하세요.",
+    ja: "日本語で回答してください。",
   };
 
   const prompt = `${languageInstruction[language]}
@@ -104,6 +114,7 @@ Keep the response concise and informative. Do not use bullet points or lists.`;
       en: "Unable to generate explanation at this time.",
       de: "Die Erklärung konnte nicht generiert werden.",
       ko: "지금은 설명을 생성할 수 없습니다.",
+      ja: "現在、説明を生成できません。",
     };
     return fallbackByLanguage[language];
   }

@@ -11,6 +11,7 @@ const EXPLANATION_FALLBACK_BY_LANGUAGE: Record<AppLanguage, string> = {
   en: "Unable to generate explanation at this time.",
   de: "Die Erklärung konnte nicht generiert werden.",
   ko: "지금은 설명을 생성할 수 없습니다.",
+  ja: "現在、説明を生成できません。",
 };
 const EMPTY_EXPLANATION_FALLBACK = "Unable to generate explanation.";
 const translationSeedStore = new Map<string, string>();
